@@ -1,0 +1,42 @@
+diff --git a/node_modules/react-daisyui/.bun-tag-a34766dfeea19e3f b/.bun-tag-a34766dfeea19e3f
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/dist/Select/Select.d.ts b/dist/Select/Select.d.ts
+index fb3cb5efd966b61f0e3ce7b8a810ac243100c3d1..1b26b42c10a9877376a800b079bab02855b98cb7 100644
+--- a/dist/Select/Select.d.ts
++++ b/dist/Select/Select.d.ts
+@@ -9,7 +9,7 @@ export type SelectProps = Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 's
+     borderOffset?: boolean;
+ };
+ declare const _default: React.ForwardRefExoticComponent<Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size" | "color"> & IComponentBaseProps & {
+-    children: ListOrItem<React.ReactElement<SelectOptionProps, string | React.JSXElementConstructor<any>>>;
++    children: ListOrItem<React.ReactElement<SelectOptionProps, string | React.JSXElementConstructor<any>> | null | undefined>;
+     size?: "lg" | "md" | "sm" | "xs" | undefined;
+     color?: "neutral" | "primary" | "secondary" | "accent" | "ghost" | "info" | "success" | "warning" | "error" | undefined;
+     bordered?: boolean | undefined;
+diff --git a/dist/Table/Table.d.ts b/dist/Table/Table.d.ts
+index b570a6e1932b0d88332a21332c432be368d41d3d..87f490e4d71b73d1a95f4070662de31b1711a50e 100644
+--- a/dist/Table/Table.d.ts
++++ b/dist/Table/Table.d.ts
+@@ -13,18 +13,18 @@ declare const _default: React.ForwardRefExoticComponent<React.TableHTMLAttribute
+     pinCols?: boolean | undefined;
+ } & React.RefAttributes<HTMLTableElement>> & {
+     Head: React.ForwardRefExoticComponent<React.TableHTMLAttributes<HTMLTableSectionElement> & {
+-        children?: React.ReactNode[] | undefined;
++        children?: React.ReactNode | undefined;
+         noCell?: boolean | undefined;
+     } & React.RefAttributes<HTMLTableSectionElement>>;
+     Body: React.ForwardRefExoticComponent<import("./TableBody").TableBodyProps & React.RefAttributes<HTMLTableSectionElement>>;
+     Row: React.ForwardRefExoticComponent<React.TableHTMLAttributes<HTMLTableRowElement> & IComponentBaseProps & {
+-        children?: React.ReactElement<any, string | React.JSXElementConstructor<any>>[] | undefined;
++        children?: React.ReactNode | undefined;
+         active?: boolean | undefined;
+         hover?: boolean | undefined;
+         noCell?: boolean | undefined;
+     } & React.RefAttributes<HTMLTableRowElement>>;
+     Footer: React.ForwardRefExoticComponent<React.TableHTMLAttributes<HTMLTableSectionElement> & IComponentBaseProps & {
+-        children?: React.ReactElement<any, string | React.JSXElementConstructor<any>>[] | undefined;
++        children?: React.ReactNode | undefined;
+         noCell?: boolean | undefined;
+     } & React.RefAttributes<HTMLTableSectionElement>>;
+ };

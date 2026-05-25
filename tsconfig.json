@@ -2,6 +2,7 @@
   "compilerOptions": {
     // Environment setup & latest features
     "lib": ["ESNext", "DOM"],
+    "types": ["bun", "custom-types", "react", "react-dom", "vite/client"],
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
@@ -25,9 +26,5 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
-
-    "paths": {
-      "pg": ["./pg"]
-    }
   }
 }

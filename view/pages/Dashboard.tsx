@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import * as echarts from 'echarts'
 import saferEval from 'safer-eval'
+import { useMap } from 'react-exo-hooks'
 
 import type { renderRoute } from '../index'
 import type { Chart } from '../../lib/config'
@@ -316,7 +317,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
   const [isUnsaved, setIsUnsaved] = useState(false)
   const [editing, setEditing] = useState<number | null>(null)
   const [tables, setTables] = useState<Awaited<ReturnType<typeof getTables>>>({})
-  const [errors, setErrors] = useState<Record<number, Error | undefined>>({}) // TODO: Use map
+  const errors = useMap<number, Error | undefined>()
 
   const [password, setPassword] = useState<string>()
   const [passwordError, setPasswordError] = useState<string>()
@@ -340,7 +341,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
             widget.toggleAttribute('data-editing', true)
             widget.toggleAttribute('data-last-edited', true)
           }}
-          onError={(e) => setErrors((prior) => ({ ...prior, [i]: e }))}
+          onError={(e) => errors.set(i, e)}
         />
       ),
       draggable: true,
@@ -501,7 +502,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:!bg-transparent  [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible' onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
           <Dash key={dashKey} widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='bg-blue-200' onChange={updateWidgets} />
-          {/* <div className={twMerge('transition fixed inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} /> */}
+          <div className={twMerge('transition fixed inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
         </div>
       </div>
 
@@ -535,9 +536,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                 <Select defaultValue={editedChart.table ?? ''} onChange={(e) => editChart('table', e.currentTarget.value)} className='w-full' id='table' name='table'>
                   <Select.Option value='' disabled>Choose a Table</Select.Option>
 
-                  {tables && Object.keys(tables).map((t) => (
+                  {(tables && Object.keys(tables).map((t) => (
                     <Select.Option value={t} key={t}>{t}</Select.Option>
-                  )) as any}
+                  )))}
                 </Select>
               </div>
 
@@ -587,9 +588,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {tables && tables[editedChart.table ?? '']?.map((c) => (
+                                {(tables?.[editedChart.table ?? '']?.map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
-                                )) as any}
+                                )))}
                               </Select>
                             </div>
                           </div>
@@ -609,9 +610,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {tables && tables[editedChart.table ?? '']?.map((c) => (
+                                {(tables?.[editedChart.table ?? '']?.map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
-                                )) as any}
+                                )))}
                               </Select>
                             </div>
                           </div>
@@ -635,9 +636,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {tables && tables[editedChart.table ?? '']?.map((c) => (
+                                {(tables?.[editedChart.table ?? '']?.map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
-                                )) as any}
+                                )))}
                               </Select>
                             </div>
                           </div>
@@ -668,9 +669,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {tables && tables[editedChart.table ?? '']?.map((c) => (
+                                {(tables?.[editedChart.table ?? '']?.map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
-                                )) as any}
+                                )))}
                               </Select>
                             </div>
                           </div>
@@ -690,9 +691,10 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {tables && tables[editedChart.table ?? '']?.filter((c) => c.numeric_precision !== null).map((c) => (
+                                {/* eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain */}
+                                {(tables?.[editedChart.table ?? '']?.filter((c) => c.numeric_precision !== null).map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
-                                )) as any}
+                                )))!}
                               </Select>
                             </div>
                           </div>
@@ -708,9 +710,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                             </Tooltip>
                           </label>
                           <DebouncedInput Comp='textarea' id='mapFn' name='mapFn' placeholder='JS Code...' defaultValue={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
-                          {Boolean(editing && errors[editing]) && (
+                          {Boolean(editing && errors.get(editing)) && (
                             <label className='label' htmlFor='mapFn'>
-                              <span className='label-text text-error'>{errors[editing!]!.message}</span>
+                              <span className='label-text text-error'>{errors.get(editing!)!.message}</span>
                             </label>
                           )}
                         </div>

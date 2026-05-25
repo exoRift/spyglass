@@ -137,10 +137,7 @@ WHERE table_type = 'BASE TABLE'
     if (chart.where) query.whereRaw(chart.where)
 
     return query
-      .then((rows) => {
-        logger.debug(rows)
-        return rows
-      })
+      .finally()
       .catch((err) => {
         logger.error('Failed to executive query', err)
         return null
