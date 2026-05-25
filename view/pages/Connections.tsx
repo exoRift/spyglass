@@ -2,13 +2,15 @@ import { useCallback, useState } from 'react'
 
 import type { renderRoute } from '../index'
 import { twMerge } from 'tailwind-merge'
+import { useObject } from 'react-exo-hooks'
 
 import { Badge, Button, Form, Input, Modal, Select, Table, Toggle, Tooltip } from 'react-daisyui'
 
 import logo from '../../assets/logo.png'
 import { MdAdd, MdBuild, MdInfo } from 'react-icons/md'
+import type { Config } from '../../lib/config'
 
-function envToBadge (env: (typeof config.connections)[number]['environment']): React.ReactElement {
+function envToBadge (env: Config['connections'][number]['environment']): React.ReactElement {
   switch (env) {
     case 'local': return <Badge variant='outline' color='neutral' className='uppercase'>{env}</Badge>
     case 'testing': return <Badge color='success' className='uppercase'>{env}</Badge>
@@ -18,7 +20,7 @@ function envToBadge (env: (typeof config.connections)[number]['environment']): R
   }
 }
 
-function ConnectionCreateButton ({ onCreate }: { onCreate?: () => void }): React.ReactNode {
+function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNode {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showTestResults, setShowTestResults] = useState(false)
   const [testResult, setTestResult] = useState<number | null>(null)
@@ -31,6 +33,7 @@ function ConnectionCreateButton ({ onCreate }: { onCreate?: () => void }): React
 
     const obj = Object.fromEntries(data.entries()) as any
     if (!obj.savepass) delete obj.password
+    obj.charts = []
 
     const nameInput = document.getElementById('name') as HTMLInputElement
     if (config.connections.some((c) => c.name === obj.name)) {
@@ -53,18 +56,17 @@ function ConnectionCreateButton ({ onCreate }: { onCreate?: () => void }): React
         void saveConfig(config)
           .then((errs) => {
             if (errs !== null) {
-              console.error(errs)
+              void logError(errs)
               return
             }
 
             setShowCreateModal(false)
             form.reset()
-            onCreate?.()
           })
 
         break
     }
-  }, [onCreate])
+  }, [config])
 
   return (
     <>
@@ -207,12 +209,7 @@ function ConnectionCreateButton ({ onCreate }: { onCreate?: () => void }): React
 }
 
 export default function Connections ({ navigate }: { navigate: typeof renderRoute }): React.ReactNode {
-  const [, setSignal] = useState(0)
-
-  const deleteConnection = useCallback((index: number) => {
-    config.connections.splice(index, 1)
-    setSignal((prior) => prior + 1)
-  }, [])
+  const [config] = useObject(_config, true)
 
   return (
     <>
@@ -236,19 +233,19 @@ export default function Connections ({ navigate }: { navigate: typeof renderRout
           </Table.Head>
           <Table.Body>
             {config.connections.map((c, i) => (
-              <Table.Row key={c.name} className='transition hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connection: i })}>
+              <Table.Row key={c.name} className='transition not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connection: i })}>
                 {envToBadge(c.environment)}
                 <span>{c.name}</span>
                 <span>{c.username}</span>
                 <span>{c.database}</span>
                 <code>{c.client}</code>
-                <Button color='error' className='[:has(>&)]:w-0 [:has(>&)]:text-end' onClick={(e) => { e.stopPropagation(); deleteConnection(i) }}>Delete</Button>
+                <Button color='error' className='[:has(>&)]:w-0 [:has(>&)]:text-end' onClick={(e) => { e.stopPropagation(); config.connections.splice(i, 1) }}>Delete</Button>
               </Table.Row>
             ))}
           </Table.Body>
         </Table>
 
-        <ConnectionCreateButton onCreate={() => setSignal((prior) => prior + 1)} />
+        <ConnectionCreateButton config={config} />
       </div>
     </>
   )

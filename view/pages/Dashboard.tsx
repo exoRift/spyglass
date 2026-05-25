@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import * as echarts from 'echarts'
 import saferEval from 'safer-eval'
-import { useMap } from 'react-exo-hooks'
+import { useMap, useObject } from 'react-exo-hooks'
 
 import type { renderRoute } from '../index'
 import type { Chart } from '../../lib/config'
@@ -77,7 +77,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         }
       }
     }
-  }, [rows, chart.method.type, (chart.method as any).x, (chart.method as any).y, (chart.method as any).fn])
+  }, [rows, chart.method, chart.method.type, onError, (chart.method as any).x, (chart.method as any).y, (chart.method as any).fn])
 
   useEffect(() => {
     const aborter = new AbortController()
@@ -193,7 +193,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
 
     void queryRows(chart as typeof chart & { table: string })
       .then((r) => setRows(r || 'error'))
-  }, [canQuery, chart.table, chart.joins, chart.where])
+  }, [canQuery, chart, chart.table, chart.joins, chart.where])
 
   useEffect(() => {
     if (waiting) return
@@ -232,7 +232,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         type: 'value',
         name: 'Value'
       },
-      dataZoom: figuredType === 'time'
+      dataZoom: figuredType === 'time' && chart.style !== 'pie'
         ? {
           type: 'slider',
           xAxisIndex: [0],
@@ -243,7 +243,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         }
         : undefined
     } satisfies echarts.EChartsOption)
-  }, [waiting, mappedRows, chart.title, chart.subtitle, chart.method])
+  }, [waiting, mappedRows, chart.title, chart.subtitle, chart.method, chart.style])
 
   useEffect(() => {
     if (waiting || typeof mappedRows === 'string') return
@@ -305,6 +305,7 @@ type NestedAccess<T, K extends Autocomplete<FlattenObjectKeys<T>> = FlattenObjec
     : never
 
 export default function Dashboard ({ navigate, connection: connIndex }: { navigate: typeof renderRoute, connection: number }): React.ReactNode {
+  const [config, setConfig] = useObject(_config, true)
   const connection = config.connections[connIndex]!
 
   const {
@@ -312,7 +313,6 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
     handleShow: promptUnsaved
   } = Modal.useDialog()
 
-  const [signal, setSignal] = useState(0)
   const [dashKey, setDashKey] = useState(0)
   const [isUnsaved, setIsUnsaved] = useState(false)
   const [editing, setEditing] = useState<number | null>(null)
@@ -351,7 +351,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       minHeight: 10,
       maxWidth: 100
     }))
-  }, [signal, connection, password])
+  }, [errors, +errors, connection, +connection.charts, password])
 
   const createWidget = useCallback((e: React.MouseEvent) => {
     const x = Math.min(Math.round(e.clientX / e.currentTarget.clientWidth * 100), 100 - 30)
@@ -376,9 +376,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       style: 'line',
       table: null
     })
-    setSignal((prior) => prior + 1)
+
     setIsUnsaved(true)
-  }, [signal, connection])
+  }, [connection])
 
   const updateWidgets = useCallback((widgets: Layout) => {
     for (let w = 0; w < widgets.length; ++w) {
@@ -396,19 +396,22 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       // setSignal((prior) => prior + 1)
       setIsUnsaved(true)
     }
-  }, [signal, connection])
+  }, [connection])
 
   const save = useCallback(() => {
     void saveConfig(config)
       .then(() => setIsUnsaved(false))
-  }, [signal])
+  }, [config])
 
   const restoreConfig = useCallback(() => {
     void getConfig()
-      .then((cfg) => { config = cfg })
+      .then((cfg) => {
+        _config = cfg
+        setConfig(_config)
+      })
       .then(() => setIsUnsaved(false))
       .then(() => setDashKey((prior) => prior + 1))
-  }, [signal, dashKey])
+  }, [setConfig])
 
   const connect = useCallback((e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -469,7 +472,6 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       }
 
       setIsUnsaved(true)
-      setSignal((prior) => prior + 1)
     }
   }
 
@@ -515,7 +517,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                 <h1 className='text-2xl font-bold'>Edit Chart</h1>
 
                 <Tooltip color='error' message='Delete' position='left'>
-                  <button className='text-error text-2xl cursor-pointer' onClick={() => { connection.charts.splice(editing!, 1); setEditing(null); setIsUnsaved(true); setSignal((prior) => prior + 1) }}>
+                  <button className='text-error text-2xl cursor-pointer' onClick={() => { connection.charts.splice(editing!, 1); setEditing(null); setIsUnsaved(true) }}>
                     <MdDelete />
                   </button>
                 </Tooltip>

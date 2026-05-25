@@ -154,7 +154,7 @@ type Promisify<T extends (...args: any[]) => any> = (...args: Parameters<T>) => 
 
 /* eslint-disable no-var */
 declare global {
-  var config: Config
+  var _config: Config
   var logInfo: Promisify<typeof binds.logInfo>
   var logWarn: Promisify<typeof binds.logWarn>
   var logError: Promisify<typeof binds.logError>
@@ -169,7 +169,7 @@ declare global {
 /* eslint-enable no-var */
 
 webview.title = 'Spyglass'
-webview.init(`var config = ${JSON.stringify(config)}`)
+webview.init(`var _config = ${JSON.stringify(config)}`)
 webview.init(`
 const originalInfo = console.info
 const originalError = console.error

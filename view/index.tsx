@@ -83,7 +83,7 @@ const VIEWS = {
 //   "theme": "system"
 // }
 
-document.body.setAttribute('data-theme', config.theme)
+document.body.setAttribute('data-theme', _config.theme)
 
 export function renderRoute<R extends keyof typeof VIEWS> (route: R, props: Omit<React.ComponentProps<(typeof VIEWS)[R]>, 'navigate'>): void {
   const View = VIEWS[route] as React.FunctionComponent<any>
