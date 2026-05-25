@@ -1,20 +1,27 @@
 {
-  "name": "spyglasssql",
+  "name": "spyglass",
   "module": "index.ts",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun run --watch index.ts",
-    "build": "NODE_ENV=production vite build view && bun build -e vite -e pg -e pg-query-stream -e sqlite3 -e better-sqlite3 -e mysql -e mysql2 -e oracledb -e tedious --compile --production --minify --sourcemap index.ts --outfile spyglass; rm -rf ./view/dist/",
+    "prebuild": "bun run update-schema",
+    "build": "NODE_ENV=production vite build view && bun build -e vite -e sqlite3 -e mysql --compile --production --minify --sourcemap index.ts --outfile spyglass; rm -rf ./view/dist/",
     "lint": "eslint .",
     "update-schema": "bun scripts/updateschema.ts"
   },
   "dependencies": {
     "arktype": "^2.1.20",
+    "better-sqlite3": "^12.10.0",
     "echarts": "^5.6.0",
     "knex": "^3.1.0",
     "knex-schema-inspector": "^3.1.0",
+    "mysql2": "^3.22.3",
+    "oracledb": "^6.10.0",
+    "pg": "^8.21.0",
+    "pg-query-stream": "^4.15.0",
     "safer-eval": "^1.3.6",
+    "tedious": "^19.2.1",
     "webview-bun": "github:exoRift/webview-bun"
   },
   "devDependencies": {
@@ -23,6 +30,7 @@
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.1",
+    "custom-types": "github:exoRift/custom-types",
     "daisyui": "^5.0.43",
     "dashup": "^1.1.1",
     "eslint": "^9.28.0",

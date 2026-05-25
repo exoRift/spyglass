@@ -37,3 +37,5 @@ spyglass.json
 spyglass
 spyglass.app
 spyglass.exe
+
+*.js.map

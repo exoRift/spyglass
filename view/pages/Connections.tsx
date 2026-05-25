@@ -217,9 +217,9 @@ export default function Connections ({ navigate }: { navigate: typeof renderRout
   return (
     <>
       <header className='flex gap-4 items-center bg-base-300 transition-colors duration-300 p-2'>
-        <img src={logo} alt='SpyglassSQL' className='size-12' />
+        <img src={logo} alt='Spyglass' className='size-12' />
 
-        <h1 className='text-secondary text-2xl font-bold'>Spyglass SQL</h1>
+        <h1 className='text-secondary text-2xl font-bold'>Spyglass</h1>
       </header>
 
       <div className='p-8 space-y-4'>

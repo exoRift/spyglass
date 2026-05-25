@@ -33,31 +33,11 @@ let activeConnection: Knex.Knex | undefined
 /** View */
 const webview = new Webview(process.env.NODE_ENV !== 'production')
 
-function moduleExists (name: string): boolean {
-  try {
-    Bun.resolveSync(name, import.meta.dirname)
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function ensureInstalled (driver: Connection['client']): Promise<void> {
-  const installed = moduleExists(driver)
-
-  if (!installed) {
-    logger.debug('Installing:', driver)
-    await Bun.$`bun install ${driver} --no-save`
-      .then(() => logger.debug(driver, 'installed'))
-      .catch(() => logger.error(driver, 'failed to install'))
-  }
-}
-
 function constructConnection (options: Connection & { password: string }): Knex.Knex {
   return Knex({
     client: options.client,
     connection: {
-      application_name: 'SpyglassSQL',
+      application_name: 'Spyglass',
       user: options.username,
       password: options.password,
       host: options.host,
@@ -84,8 +64,6 @@ const binds = {
       .then(() => null)
   },
   async testConnection (options: Connection & { password: string }): Promise<number | null> {
-    await ensureInstalled(options.client)
-
     const connection = constructConnection(options)
 
     const ts = performance.now()
@@ -102,7 +80,6 @@ const binds = {
 
     const connection = structuredClone(config.connections[index])
     if (!connection) throw Error('Somehow trying to set nonexistent active connection')
-    await ensureInstalled(connection.client)
 
     if (password) connection.password = password
     if (!connection.password) throw Error('Missing password for connection')
@@ -160,7 +137,10 @@ WHERE table_type = 'BASE TABLE'
     if (chart.where) query.whereRaw(chart.where)
 
     return query
-      .then((rows) => rows)
+      .then((rows) => {
+        logger.debug(rows)
+        return rows
+      })
       .catch((err) => {
         logger.error('Failed to executive query', err)
         return null
@@ -191,7 +171,7 @@ declare global {
 }
 /* eslint-enable no-var */
 
-webview.title = 'SpyglassSQL'
+webview.title = 'Spyglass'
 webview.init(`var config = ${JSON.stringify(config)}`)
 webview.init(`
 const originalInfo = console.info
