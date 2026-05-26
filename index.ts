@@ -123,7 +123,7 @@ WHERE table_type = 'BASE TABLE'
         return null
       })
   },
-  queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins'> & { table: string }): Promise<any[] | null> {
+  queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc'> & { table: string }): Promise<any[] | null> {
     if (!activeConnection) throw Error('Attempted to query without an active connection')
 
     const query = activeConnection
@@ -136,10 +136,13 @@ WHERE table_type = 'BASE TABLE'
     }
     if (chart.where) query.whereRaw(chart.where)
 
+    if (chart.sortCol) query.orderBy(chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
+    if (chart.limit) query.limit(chart.limit)
+
     return query
       .finally()
       .catch((err) => {
-        logger.error('Failed to executive query', err)
+        logger.error('Failed to execute query', err)
         return null
       })
   }

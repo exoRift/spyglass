@@ -8,10 +8,10 @@ import type { renderRoute } from '../index'
 import type { Chart } from '../../lib/config'
 
 import { type Layout, type WidgetProps, Dashboard as Dash } from 'dashup'
-import { Alert, Button, Drawer, Form, Input, Modal, Select, Tooltip } from 'react-daisyui'
+import { Alert, Button, Drawer, Form, Input, Join, Modal, Select, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
 
-import { MdArrowLeft, MdCable, MdDelete, MdDragHandle, MdHelp, MdSave, MdWarning } from 'react-icons/md'
+import { MdArrowLeft, MdCable, MdDelete, MdDragHandle, MdHelp, MdSave, MdWarning, MdArrowUpward } from 'react-icons/md'
 import 'dashup/style.css'
 
 function Chart ({ chart, canQuery, className, onContextMenu, width, height, onError }: { chart: Chart, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
@@ -186,14 +186,18 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
   }, [waiting])
 
   useEffect(() => {
+    const aborter = new AbortController()
+
     if (!chart.table || !canQuery) {
       setRows([])
       return
     }
 
     void queryRows(chart as typeof chart & { table: string })
-      .then((r) => setRows(r || 'error'))
-  }, [canQuery, chart, chart.table, chart.joins, chart.where])
+      .then((r) => !aborter.signal.aborted && setRows(r || 'error'))
+
+    return () => aborter.abort()
+  }, [canQuery, chart, chart.table, chart.joins, chart.where, chart.limit, chart.sortCol, chart.sortDesc])
 
   useEffect(() => {
     if (waiting) return
@@ -249,15 +253,19 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
     if (waiting || typeof mappedRows === 'string') return
 
     chartRef.current?.setOption({
+      xAxis: chart.style === 'pie'
+        ? undefined
+        : {
+          data: mappedRows.map((r) => r.x)
+        },
       series: [{
         name: 'Series 1',
         type: chart.style,
-        data: mappedRows.map((r) => (chart.style === 'pie'
-          ? { name: r.x, value: r.y }
-          : { value: [r.x, r.y] }))
+        data: chart.style === 'pie'
+          ? mappedRows.map((r) => ({ name: r.x, value: r.y }))
+          : mappedRows.map((r) => ({ value: [r.x, r.y] }))
       } satisfies echarts.SeriesOption]
     })
-    chartRef.current?.resize()
   }, [waiting, chart.style, mappedRows])
 
   useEffect(() => {
@@ -271,7 +279,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         <MdDragHandle />
       </div>
 
-      <div className={twMerge('flex h-full select-none', className)} onContextMenu={onContextMenu}>
+      <div className={twMerge('flex h-full select-none', className)} onContextMenu={onContextMenu} onDoubleClick={(e) => e.stopPropagation()}>
         <div className='w-0 grow flex flex-col'>
           <div className='h-0 grow' ref={chartContainer} />
         </div>
@@ -495,7 +503,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
           Back
         </Button>
 
-        <Button onClick={save} color='secondary' className={twMerge('transition opacity-0 ml-auto pointer-events-none', isUnsaved && 'animate-pulse opacity-100 pointer-events-auto')}>
+        <Button onClick={save} color='secondary' className={twMerge('transition opacity-0 ml-auto pointer-events-none', isUnsaved && 'animate-pulse opacity-100 pointer-events-auto z-40', editing !== null && 'translate-x-[-25rem]')}>
           <MdSave className='text-xl' />
           Save
         </Button>
@@ -693,10 +701,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {/* eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain */}
                                 {(tables?.[editedChart.table ?? '']?.filter((c) => c.numeric_precision !== null).map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
-                                )))!}
+                                )))}
                               </Select>
                             </div>
                           </div>
@@ -728,6 +735,40 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                   <span className='label-text'>Filter</span>
                 </label>
                 <DebouncedInput delay={500} placeholder='Raw SQL WHERE Clause...' defaultValue={editedChart.where} onDebouncedChange={(v) => editChart('where', v)} className='w-full' id='where' name='where' />
+              </div>
+
+              <div className='flex gap-4 *:grow'>
+                <div className='fieldset w-full'>
+                  <label htmlFor='limit' className='label'>
+                    <span className='label-text'>Row Limit</span>
+                  </label>
+                  <DebouncedInput type='number' min={1} delay={500} placeholder='No Limit' defaultValue={editedChart.limit} onChange={(e) => e.currentTarget.reportValidity()} onDebouncedChange={(v) => editChart('limit', v ? parseInt(v) : undefined)} className='w-full invalid:input-error' id='limit' name='limit' />
+                </div>
+
+                <Join horizontal className='w-full'>
+                  <div className='fieldset'>
+                    <label htmlFor='sortCol' className='label'>
+                      <span className='label-text'>Order By</span>
+                    </label>
+                    <Select disabled={!editedChart.table} defaultValue={editedChart.sortCol ?? ''} onChange={(e) => editChart('sortCol', e.currentTarget.value)} className='w-full join-item' id='sortCol' name='sortCol'>
+                      <Select.Option value=''>No Order</Select.Option>
+
+                      {(tables?.[editedChart.table ?? '']?.map((c) => (
+                        <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                      )))}
+                    </Select>
+                  </div>
+
+                  <div className='fieldset'>
+                    <label htmlFor='sortDesc' className='label'>
+                      <span className='label-text'>Sort</span>
+                    </label>
+                    <label htmlFor='sortDesc' className='relative checkbox size-10 join-item'>
+                      <input type='checkbox' hidden className='absolute' disabled={!editedChart.table} defaultChecked={editedChart.sortDesc || false} onChange={(e) => editChart('sortDesc', e.currentTarget.checked || undefined)} id='sortDesc' name='sortDesc' />
+                      <MdArrowUpward className='transition [:has(:checked)>&]:-scale-y-100 absolute inset-0 size-full p-2' />
+                    </label>
+                  </div>
+                </Join>
               </div>
             </div>
           )

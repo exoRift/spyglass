@@ -37,7 +37,10 @@ const Chart = type({
   'joins?': Join.array(),
   'where?': 'string',
   'xFormatter?': 'string',
-  'yFormatter?': 'string'
+  'yFormatter?': 'string',
+  'limit?': 'number',
+  'sortCol?': 'string',
+  'sortDesc?': 'true'
 })
 export type Chart = typeof Chart.infer
 
