@@ -13,7 +13,7 @@ const VIEWS = {
   Dashboard
 }
 
-// window.config = {
+// window._config = {
 //   "connections": [
 //     {
 //       "name": "Testing",

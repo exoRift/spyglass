@@ -4,7 +4,7 @@
 @source '../../node_modules/react-daisyui/dist/**/*.js';
 
 @plugin 'daisyui/theme' {
-  name: 'winter';
+  name: 'pearlwinter';
   default: true;
   prefersdark: false;
   color-scheme: 'light';
@@ -38,8 +38,9 @@
   --noise: 0.5;
 }
 
-@plugin 'daisyui/theme' {
-  name: 'night';
+
+@plugin "daisyui/theme" {
+  name: 'pearlnight';
   default: false;
   prefersdark: true;
   color-scheme: 'dark';
@@ -69,8 +70,21 @@
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
-  --depth: 0.5;
-  --noise: 0.5;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui" {
+  themes: pearlwinter --default, pearlnight --prefersdark;
+}
+
+.dashup {
+  --color-dashboard-white: var(--color-base-200) !important;
+  --color-dashboard-border: color-mix(in oklab, var(--color-neutral) 20%, #0000) !important;
+}
+#widget-placeholder {
+  /* --color-dashup-white: var(--color-accent) !important; */
+  /* background-color: var(--color-accent) !important; */
 }
 
 html {

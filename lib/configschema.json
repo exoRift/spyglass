@@ -163,6 +163,15 @@
                     ]
                   }
                 },
+                "limit": {
+                  "type": "number"
+                },
+                "sortCol": {
+                  "type": "string"
+                },
+                "sortDesc": {
+                  "const": true
+                },
                 "where": {
                   "type": "string"
                 },

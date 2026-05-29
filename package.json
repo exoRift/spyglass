@@ -45,7 +45,7 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
-    "vite-plugin-singlefile": "^2.2.0"
+    "vite-plugin-singlefile": "^2.3.3"
   },
   "patchedDependencies": {
     "react-daisyui@5.0.5": "patches/react-daisyui@5.0.5.patch"

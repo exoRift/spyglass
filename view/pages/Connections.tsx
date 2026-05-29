@@ -25,10 +25,10 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
   const [showTestResults, setShowTestResults] = useState(false)
   const [testResult, setTestResult] = useState<number | null>(null)
 
-  const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = useCallback((e: React.SubmitEvent<HTMLFormElement>) => {
     const form = e.currentTarget
     e.preventDefault()
-    const mode = (e.nativeEvent as SubmitEvent).submitter!.id
+    const mode = e.nativeEvent.submitter!.id
     const data = new FormData(form)
 
     const obj = Object.fromEntries(data.entries()) as any

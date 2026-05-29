@@ -421,7 +421,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       .then(() => setDashKey((prior) => prior + 1))
   }, [setConfig])
 
-  const connect = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+  const connect = useCallback((e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
     const pw = (data.get('password') as string | null) ?? ''
@@ -509,9 +509,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
         </Button>
       </header>
 
-      <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:!bg-transparent  [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible' onDoubleClick={createWidget}>
+      <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:!bg-transparent [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible' onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
-          <Dash key={dashKey} widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='bg-blue-200' onChange={updateWidgets} />
+          <Dash key={dashKey} widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='!transition-none' onChange={updateWidgets} />
           <div className={twMerge('transition fixed inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
         </div>
       </div>
