@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { Config } from '../lib/config'
+import { Config } from '../src/lib/config'
 
 const schema = Config.toJsonSchema({
   fallback: {

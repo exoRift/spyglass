@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "charts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "fn": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "custom"
+                        }
+                      },
+                      "required": [
+                        "fn",
+                        "type"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "enum": [
+                            "aggregate_sum",
+                            "column"
+                          ]
+                        },
+                        "x": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "y": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "x",
+                        "y"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "aggregate_count"
+                        },
+                        "x": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "x"
+                      ]
+                    }
+                  ]
+                },
+                "pos": {
+                  "type": "object",
+                  "properties": {
+                    "height": {
+                      "type": "number"
+                    },
+                    "width": {
+                      "type": "number"
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "height",
+                    "width",
+                    "x",
+                    "y"
+                  ]
+                },
+                "style": {
+                  "enum": [
+                    "bar",
+                    "line",
+                    "pie"
+                  ]
+                },
+                "subtitle": {
+                  "type": "string"
+                },
+                "table": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "xTitle": {
+                  "type": "string"
+                },
+                "yTitle": {
+                  "type": "string"
+                },
+                "joins": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "baseColumn": {
+                        "type": "string"
+                      },
+                      "foreignColumn": {
+                        "type": "string"
+                      },
+                      "table": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "baseColumn",
+                      "foreignColumn",
+                      "table"
+                    ]
+                  }
+                },
+                "limit": {
+                  "type": "number"
+                },
+                "sortCol": {
+                  "type": "string"
+                },
+                "sortDesc": {
+                  "const": true
+                },
+                "where": {
+                  "type": "string"
+                },
+                "xFormatter": {
+                  "type": "string"
+                },
+                "yFormatter": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "method",
+                "pos",
+                "style",
+                "subtitle",
+                "table",
+                "title",
+                "xTitle",
+                "yTitle"
+              ]
+            }
+          },
+          "client": {
+            "enum": [
+              "mysql",
+              "oracledb",
+              "pg",
+              "sqlite3",
+              "tedious"
+            ]
+          },
+          "database": {
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "development",
+              "local",
+              "production",
+              "staging",
+              "testing"
+            ]
+          },
+          "host": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?:(?!^-0\\.?0*$)(?:-?(?:(?:0|[1-9]\\d*)(?:\\.\\d+)?)|\\.\\d+?))$"
+              },
+              {
+                "const": ""
+              }
+            ]
+          }
+        },
+        "required": [
+          "charts",
+          "client",
+          "database",
+          "environment",
+          "host",
+          "name",
+          "username"
+        ]
+      },
+      "default": []
+    },
+    "theme": {
+      "enum": [
+        "dark",
+        "light",
+        "system"
+      ],
+      "default": "system"
+    }
+  }
+}

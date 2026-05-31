@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 @plugin 'daisyui';
-@source '../../node_modules/daisyui/dist/**/*.js';
-@source '../../node_modules/react-daisyui/dist/**/*.js';
+@source '../../../node_modules/daisyui/dist/**/*.js';
+@source '../../../node_modules/react-daisyui/dist/**/*.js';
 
 @plugin 'daisyui/theme' {
   name: 'pearlwinter';

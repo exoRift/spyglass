@@ -163,7 +163,9 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
 
     chartContainer.current
       ?.closest('.dashup-widget')
-      ?.addEventListener('transitionend', () => chartRef.current?.resize(), { passive: true, signal: aborter.signal })
+      ?.addEventListener('transitionend', () => {
+        requestAnimationFrame(() => chartRef.current?.resize())
+      }, { passive: true, signal: aborter.signal })
 
     const widget = chartContainer.current?.closest('.dashup-widget')
 
@@ -270,7 +272,9 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
 
   useEffect(() => {
     if (waiting) return
-    chartRef.current?.resize()
+    requestAnimationFrame(() => {
+      chartRef.current?.resize()
+    })
   }, [width, height])
 
   return (
