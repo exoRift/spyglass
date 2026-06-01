@@ -210,7 +210,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
 }
 
 export default function Connections ({ navigate }: { navigate: typeof renderRoute }): React.ReactNode {
-  const [config] = useObject(_config, true)
+  const [config] = useObject(_config)
 
   return (
     <>
@@ -223,7 +223,7 @@ export default function Connections ({ navigate }: { navigate: typeof renderRout
 
         <div>
           <a href={pkg.homepage} target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void openLink(e.currentTarget.href) }}>
-            <img src='https://github.com/favicon.ico' alt='GitHub' className='size-6' />
+            <img src='https://github.com/favicon.ico' alt='GitHub' className='size-6 dark:invert' />
           </a>
         </div>
       </header>

@@ -329,7 +329,7 @@ type NestedAccess<T, K extends Autocomplete<FlattenObjectKeys<T>> = FlattenObjec
     : never
 
 export default function Dashboard ({ navigate, connection: connIndex }: { navigate: typeof renderRoute, connection: number }): React.ReactNode {
-  const [config, setConfig, forceUpdate] = useObject(_config, true)
+  const [config, setConfig] = useObject(_config)
   const connection = config.connections[connIndex]!
 
   const {
@@ -375,7 +375,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       minHeight: 10,
       maxWidth: 100
     }))
-  }, [errors, +errors, connection, +connection.charts, password])
+  }, [errors, +errors, connection, +config, password])
 
   const createWidget = useCallback((e: React.MouseEvent) => {
     const x = Math.min(Math.round(e.clientX / e.currentTarget.clientWidth * 100), 100 - 30)
@@ -400,7 +400,6 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       style: 'line',
       table: null
     })
-    forceUpdate()
 
     setIsUnsaved(true)
   }, [connection])
