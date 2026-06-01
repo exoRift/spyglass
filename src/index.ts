@@ -4,6 +4,7 @@ import { type } from 'arktype'
 import Knex from 'knex'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 import inspector from 'knex-schema-inspector'
+import open from 'open'
 
 import { type Chart, type Connection, Config } from './lib/config'
 import * as logger from './lib/logger'
@@ -52,6 +53,10 @@ const binds = {
   logWarn: logger.warn,
   logError: logger.error,
   logDebug: logger.debug,
+  async openLink (url: string) {
+    return await open(url)
+      .then(() => true)
+  },
   getConfig (): Config {
     return config
   },
@@ -162,6 +167,7 @@ declare global {
   var logWarn: Promisify<typeof binds.logWarn>
   var logError: Promisify<typeof binds.logError>
   var logDebug: Promisify<typeof binds.logDebug>
+  var openLink: Promisify<typeof binds.openLink>
   var getConfig: Promisify<typeof binds.getConfig>
   var saveConfig: Promisify<typeof binds.saveConfig>
   var testConnection: Promisify<typeof binds.testConnection>
@@ -215,6 +221,7 @@ if (process.env.NODE_ENV === 'production') {
 
     logger.debug('Vite running on URL:', url)
     if (!url) throw Error('Unexpected: Vite did not return a local address')
+    webview.init('document.addEventListener("keydown", (e) => { if (e.key === "=") { debugger } })')
     webview.navigate(url)
     webview.runNonBlocking(() => process.exit(0))
   }, { once: true })

@@ -9,6 +9,7 @@ import { Badge, Button, Form, Input, Modal, Select, Table, Toggle, Tooltip } fro
 import logo from '../../assets/logo.png'
 import { MdAdd, MdBuild, MdInfo } from 'react-icons/md'
 import type { Config } from '../../lib/config'
+import pkg from '../../../package.json' with { type: 'json' }
 
 function envToBadge (env: Config['connections'][number]['environment']): React.ReactElement {
   switch (env) {
@@ -213,10 +214,18 @@ export default function Connections ({ navigate }: { navigate: typeof renderRout
 
   return (
     <>
-      <header className='flex gap-4 items-center bg-base-300 transition-colors duration-300 p-2'>
-        <img src={logo} alt='Spyglass' className='size-12' />
+      <header className='flex gap-4 items-center justify-between bg-base-300 transition-colors duration-300 py-2 px-4'>
+        <div className='flex gap-4 items-center'>
+          <img src={logo} alt='Spyglass' className='w-16 h-12 object-cover dark:invert dark:hue-rotate-180' />
 
-        <h1 className='text-secondary text-2xl font-bold'>Spyglass</h1>
+          <h1 className='text-secondary text-xl font-bold -translate-x-8 translate-y-4 italic'>Spyglass</h1>
+        </div>
+
+        <div>
+          <a href={pkg.homepage} target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void openLink(e.currentTarget.href) }}>
+            <img src='https://github.com/favicon.ico' alt='GitHub' className='size-6' />
+          </a>
+        </div>
       </header>
 
       <div className='p-8 space-y-4'>

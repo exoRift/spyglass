@@ -9,25 +9,18 @@
   prefersdark: false;
   color-scheme: 'light';
   --color-base-100: oklch(100% 0 0);
-  --color-base-200: oklch(97.466% 0.011 259.822);
-  --color-base-300: oklch(93.268% 0.016 262.751);
+  --color-base-200: oklch(95.466% 0.011 259.822);
+  --color-base-300: oklch(90.268% 0.016 262.751);
   --color-base-content: oklch(41.886% 0.053 255.824);
-  --color-primary: oklch(79% 0.184 86.047);
-  --color-primary-content: oklch(0% 0 0);
-  --color-secondary: oklch(79% 0.209 151.711);
-  --color-secondary-content: oklch(0% 0 0);
-  --color-accent: oklch(72.36% 0.176 350.048);
-  --color-accent-content: oklch(11.988% 0.038 335.171);
+  --color-primary: oklch(70% 0.165 254.624);
+  --color-secondary: oklch(67% 0.182 276.935);
+  --color-accent: oklch(55% 0.046 257.417);
   --color-neutral: oklch(19.616% 0.063 257.651);
   --color-neutral-content: oklch(83.923% 0.012 257.651);
   --color-info: oklch(68.455% 0.148 237.251);
-  --color-info-content: oklch(17.625% 0.017 214.515);
   --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(16.098% 0.015 197.823);
   --color-warning: oklch(76% 0.188 70.08);
-  --color-warning-content: oklch(17.834% 0.009 71.47);
   --color-error: oklch(71.785% 0.17 13.118);
-  --color-error-content: oklch(14.618% 0.022 20.076);
   --radius-selector: 0.5rem;
   --radius-field: 0.2rem;
   --radius-box: 0.5rem;
@@ -44,26 +37,19 @@
   default: false;
   prefersdark: true;
   color-scheme: 'dark';
-  --color-base-100: oklch(20.768% 0.039 265.754);
+  --color-base-100: oklch(24.768% 0.039 265.754);
   --color-base-200: oklch(19.314% 0.037 265.754);
-  --color-base-300: oklch(17.86% 0.034 265.754);
+  --color-base-300: oklch(30.86% 0.034 265.754);
   --color-base-content: oklch(84.153% 0.007 265.754);
-  --color-primary: oklch(90% 0.182 98.111);
-  --color-primary-content: oklch(15.07% 0.027 232.661);
-  --color-secondary: oklch(87% 0.15 154.449);
-  --color-secondary-content: oklch(13.602% 0.031 276.934);
-  --color-accent: oklch(72.36% 0.176 350.048);
-  --color-accent-content: oklch(14.472% 0.035 350.048);
+  --color-primary: oklch(70% 0.165 254.624);
+  --color-secondary: oklch(67% 0.182 276.935);
+  --color-accent: oklch(86% 0.022 252.894);
   --color-neutral: oklch(87% 0.01 258.338);
   --color-neutral-content: oklch(13% 0.028 261.692);
   --color-info: oklch(68.455% 0.148 237.251);
-  --color-info-content: oklch(0% 0 0);
   --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(15.69% 0.026 181.911);
   --color-warning: oklch(76% 0.188 70.08);
-  --color-warning-content: oklch(16.648% 0.027 82.95);
   --color-error: oklch(71.785% 0.17 13.118);
-  --color-error-content: oklch(14.357% 0.034 13.118);
   --radius-selector: 0.5rem;
   --radius-field: 0.2rem;
   --radius-box: 0.5rem;
@@ -76,15 +62,6 @@
 
 @plugin "daisyui" {
   themes: pearlwinter --default, pearlnight --prefersdark;
-}
-
-.dashup {
-  --color-dashboard-white: var(--color-base-200) !important;
-  --color-dashboard-border: color-mix(in oklab, var(--color-neutral) 20%, #0000) !important;
-}
-#widget-placeholder {
-  /* --color-dashup-white: var(--color-accent) !important; */
-  /* background-color: var(--color-accent) !important; */
 }
 
 html {
@@ -102,16 +79,25 @@ body {
   color-scheme: light dark;
 }
 
-body[data-theme='light'] {
-  color-scheme: light;
-}
-
-body[data-theme='dark'] {
-  color-scheme: dark;
-}
-
 @layer utilities {
+  .btn.btn-outline:not(.btn-primary,.btn-secondary,.btn-accent,.btn-ghost,.btn-success,.btn-failure,.btn-warning,.btn-info):hover {
+    @apply bg-neutral text-neutral-content;
+  }
+
+  .dashup {
+    --color-dashboard-white: var(--color-base-200) !important;
+    --color-dashboard-border: color-mix(in oklab, var(--color-neutral) 20%, #0000) !important;
+  }
+
   #widget-placeholder {
-    @apply !bg-accent/40 !border-0;
+    @apply !bg-accent/20 !border-0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  } to {
+    opacity: 1;
   }
 }

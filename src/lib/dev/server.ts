@@ -1,7 +1,7 @@
 const { createServer } = await import('vite')
 
 const server = await createServer({
-  root: 'view',
+  root: 'src/view',
   clearScreen: false
 })
 await server.listen()

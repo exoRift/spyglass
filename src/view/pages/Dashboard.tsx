@@ -92,7 +92,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
   useEffect(() => {
     if (waiting) return
     const theme = {
-      backgroundColor: 'var(--color-base-300)',
+      backgroundColor: 'var(--color-base-200)',
       textStyle: {
         color: 'var(--color-base-content)'
       },
@@ -110,21 +110,26 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         }
       },
       tooltip: {
+        axisPointer: {
+          type: 'line',
+          lineStyle: {
+            color: 'var(--color-neutral)',
+            type: 'dashed'
+          },
+          crossStyle: {
+            color: 'var(--color-neutral)'
+          },
+          shadowStyle: {
+            color: 'var(--color-neutral)'
+          }
+        },
         backgroundColor: 'var(--color-base-200)',
         borderColor: 'var(--color-neutral)',
         textStyle: {
           color: 'var(--color-base-content)'
         }
       },
-      axisPointer: {
-        lineStyle: {
-          color: 'var(--color-primary)'
-        },
-        crossStyle: {
-          color: 'var(--color-secondary)'
-        }
-      },
-      xAxis: {
+      categoryAxis: {
         axisLine: {
           lineStyle: {
             color: 'var(--color-base-content)'
@@ -135,11 +140,11 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         },
         splitLine: {
           lineStyle: {
-            color: 'var(--color-base-200)'
+            color: 'var(--color-base-300)'
           }
         }
       },
-      yAxis: {
+      valueAxis: {
         axisLine: {
           lineStyle: {
             color: 'var(--color-base-content)'
@@ -150,7 +155,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         },
         splitLine: {
           lineStyle: {
-            color: 'var(--color-base-200)'
+            color: 'var(--color-base-300)'
           }
         }
       }
@@ -178,6 +183,13 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
 
     chartRef.current.on('showTip', onTipShow)
     chartRef.current.on('hideTip', onTipHide)
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'cross' } } })
+    }, { signal: aborter.signal, passive: true })
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'line' } } })
+    }, { signal: aborter.signal, passive: true })
 
     return () => {
       aborter.abort()
@@ -216,10 +228,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         left: 'center'
       },
       tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'shadow'
-        }
+        trigger: 'axis'
       },
       legend: {
         show: true,
@@ -232,7 +241,10 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         containLabel: true
       },
       xAxis: {
-        type: figuredType
+        type: figuredType,
+        axisLabel: {
+          hideOverlap: true
+        }
       },
       yAxis: {
         type: 'value',
@@ -317,8 +329,10 @@ type NestedAccess<T, K extends Autocomplete<FlattenObjectKeys<T>> = FlattenObjec
     : never
 
 export default function Dashboard ({ navigate, connection: connIndex }: { navigate: typeof renderRoute, connection: number }): React.ReactNode {
-  const [config, setConfig] = useObject(_config, true)
+  const [config, setConfig, forceUpdate] = useObject(_config, true)
   const connection = config.connections[connIndex]!
+
+  console.debug(+config)
 
   const {
     Dialog: UnsavedDialog,
@@ -388,6 +402,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       style: 'line',
       table: null
     })
+    forceUpdate()
 
     setIsUnsaved(true)
   }, [connection])
@@ -405,7 +420,6 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       }
 
       Object.assign(connection.charts[w]!.pos, newPos)
-      // setSignal((prior) => prior + 1)
       setIsUnsaved(true)
     }
   }, [connection])
@@ -513,7 +527,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
         </Button>
       </header>
 
-      <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:!bg-transparent [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible' onDoubleClick={createWidget}>
+      <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal]' onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
           <Dash key={dashKey} widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='!transition-none' onChange={updateWidgets} />
           <div className={twMerge('transition fixed inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
