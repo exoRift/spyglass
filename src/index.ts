@@ -21,7 +21,7 @@ const args = util.parseArgs({
 })
 
 const CONFIG_LOCATION = args.values.config ? path.resolve(args.values.config) : path.resolve(process.cwd(), './spyglass.json')
-logger.debug('Config Location:', CONFIG_LOCATION)
+logger.info('Config Location:', CONFIG_LOCATION)
 
 const DRIVERS: Record<Connection['client'], string> = {
   pg: 'pg',
@@ -62,22 +62,24 @@ function moduleExists (name: string): boolean {
   }
 }
 
-async function ensureInstalled (client: Connection['client']): Promise<void> {
+function driverIsInstalled (client: Connection['client']): boolean {
   const driver = DRIVERS[client]
   const installed = moduleExists(driver)
 
   if (!installed) {
-    logger.debug('Installing:', driver)
-    await Bun.$`bun install -g ${driver} --no-save`
-      .then(() => logger.debug(driver, 'installed'))
-      .catch(() => logger.error(driver, 'failed to install'))
+    logger.info(`Alerting user to missing ${client} driver (${driver})`)
+    webview.eval(`window._missingDriver = '${driver}'; document.getElementById('driver-name').innerText = '${driver}'; document.getElementById('client-name').innerText = '${client}'; document.getElementById('driver-modal').showModal()`)
+    return false
   }
+
+  return true
 }
 
-async function constructConnection (client: Connection['client'], details: Knex.Knex.StaticConnectionConfig): Promise<Knex.Knex> {
+async function constructConnection (client: Connection['client'], details: Knex.Knex.StaticConnectionConfig): Promise<Knex.Knex | undefined> {
   using _ = await changecwd()
 
-  await ensureInstalled(client)
+  const installed = driverIsInstalled(client)
+  if (!installed) return undefined
 
   return Knex({
     client,
@@ -93,6 +95,20 @@ const binds = {
   logWarn: logger.warn,
   logError: logger.error,
   logDebug: logger.debug,
+  async installDriver (driver: string) {
+    logger.info('Installing:', driver)
+    await Bun.$`bun install -g ${driver} --no-save`
+      .then(() => {
+        logger.info(driver, 'installed')
+        webview.destroy()
+        process.execve!(
+          process.execPath,
+          [process.execPath, ...process.argv.slice(1)],
+          process.env
+        )
+      })
+      .catch(() => logger.error(driver, 'failed to install'))
+  },
   async openLink (url: string) {
     return await open(url)
       .then(() => true)
@@ -118,6 +134,7 @@ const binds = {
     }
 
     const connection = await constructConnection(client, details)
+    if (!connection) return null
 
     const ts = performance.now()
     return await connection.raw('SELECT current_user')
@@ -143,7 +160,10 @@ const binds = {
     return null
   },
   async getTables (): Promise<Partial<Record<string, Column[]>> | null> {
-    if (!activeConnection) throw Error('No active connection')
+    if (!activeConnection) {
+      logger.error('No active connection')
+      return null
+    }
 
     // Dynamically import here to ensure the inspector resolves at runtime
     // and to avoid potential deadlocks in Bun single-file builds.
@@ -262,7 +282,7 @@ if (process.env.NODE_ENV === 'production') {
   const compiled = await Bun.file(template).text()
   webview.init('window.addEventListener("beforeunload", (e) => { e.preventDefault(); e.returnValue = "" })')
   webview.setHTML(compiled)
-  webview.runNonBlocking(() => process.exit(0))
+  webview.runNonBlocking(() => /* process.exit(0) */{})
 } else {
   const api = Bun.serve({
     async fetch (req) {

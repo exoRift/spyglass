@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "bun run --watch --console-depth=100 src/index.ts",
     "prebuild": "bun run update-schema",
-    "build": "NODE_ENV=production vite build src/view && bun build -e vite -e pg -e pg-query-stream -e sqlite3 -e better-sqlite3 -e mysql -e mysql2 -e tedious -e oracledb --compile --compile-autoload-package-json --compile-exec-argv='--console-depth=100' --define process.env.NODE_ENV='\"production\"' --minify-whitespace --minify-syntax --keep-names --sourcemap src/index.ts --outfile spyglass; rm -rf ./src/view/dist/",
+    "build": "NODE_ENV=production vite build src/view && bun build -e vite -e pg -e pg-query-stream -e sqlite3 -e better-sqlite3 -e mysql -e mysql2 -e tedious -e oracledb --compile --compile-autoload-package-json --compile-exec-argv='--console-depth=100 --no-orphans' --define process.env.NODE_ENV='\"production\"' --minify-whitespace --minify-syntax --keep-names --sourcemap src/index.ts --outfile spyglass; rm -rf ./src/view/dist/",
     "lint": "eslint .",
     "update-schema": "bun scripts/updateschema.ts"
   },
