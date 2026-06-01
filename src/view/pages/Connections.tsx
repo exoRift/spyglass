@@ -46,7 +46,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
 
     switch (mode) {
       case 'test':
-        void testConnection(obj)
+        void testConnection(obj.client, obj)
           .then(setTestResult)
           .finally(() => setShowTestResults(true))
 
@@ -245,8 +245,8 @@ export default function Connections ({ navigate }: { navigate: typeof renderRout
               <Table.Row key={c.name} className='transition not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connection: i })}>
                 {envToBadge(c.environment)}
                 <span>{c.name}</span>
-                <span>{c.username}</span>
-                <span>{c.database}</span>
+                <span>{c.details.username}</span>
+                <span>{c.details.database}</span>
                 <code>{c.client}</code>
                 <Button color='error' className='[:has(>&)]:w-0 [:has(>&)]:text-end' onClick={(e) => { e.stopPropagation(); config.connections.splice(i, 1) }}>Delete</Button>
               </Table.Row>

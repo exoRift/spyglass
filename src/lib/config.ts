@@ -47,12 +47,14 @@ export type Chart = typeof Chart.infer
 const Connection = type({
   environment: '"local" | "testing" | "development" | "staging" | "production"',
   name: 'string',
-  username: 'string',
-  'password?': 'string',
-  host: 'string',
-  'port?': type.or('number | string.numeric.parse', type('""').pipe(() => undefined)),
-  database: 'string',
   client: '"pg" | "sqlite3" | "mysql" | "oracledb" | "tedious"',
+  details: {
+    username: 'string',
+    'password?': 'string',
+    host: 'string',
+    'port?': type.or('number | string.numeric.parse', type('""').pipe(() => undefined)),
+    database: 'string'
+  },
   charts: Chart.array()
 })
 export type Connection = typeof Connection.infer

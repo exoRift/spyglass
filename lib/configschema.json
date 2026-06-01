@@ -203,8 +203,41 @@
               "tedious"
             ]
           },
-          "database": {
-            "type": "string"
+          "details": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "type": "string"
+              },
+              "host": {
+                "type": "string"
+              },
+              "username": {
+                "type": "string"
+              },
+              "password": {
+                "type": "string"
+              },
+              "port": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(?:(?!^-0\\.?0*$)(?:-?(?:(?:0|[1-9]\\d*)(?:\\.\\d+)?)|\\.\\d+?))$"
+                  },
+                  {
+                    "const": ""
+                  }
+                ]
+              }
+            },
+            "required": [
+              "database",
+              "host",
+              "username"
+            ]
           },
           "environment": {
             "enum": [
@@ -215,41 +248,16 @@
               "testing"
             ]
           },
-          "host": {
-            "type": "string"
-          },
           "name": {
             "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "port": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?:(?!^-0\\.?0*$)(?:-?(?:(?:0|[1-9]\\d*)(?:\\.\\d+)?)|\\.\\d+?))$"
-              },
-              {
-                "const": ""
-              }
-            ]
           }
         },
         "required": [
           "charts",
           "client",
-          "database",
+          "details",
           "environment",
-          "host",
-          "name",
-          "username"
+          "name"
         ]
       },
       "default": []

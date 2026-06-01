@@ -219,7 +219,6 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
     const figuredType = typeof mappedRows === 'string' || isNaN(+new Date(mappedRows[0]?.x))
       ? 'category'
       : 'time'
-
     chartRef.current?.setOption({
       animation: true,
       title: {
@@ -342,6 +341,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
   const [editing, setEditing] = useState<number | null>(null)
   const [tables, setTables] = useState<Awaited<ReturnType<typeof getTables>>>({})
   const errors = useMap<number, Error | undefined>()
+  const [connected, setConnected] = useState(false)
 
   const [password, setPassword] = useState<string>()
   const [passwordError, setPasswordError] = useState<string>()
@@ -353,7 +353,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       component: (
         <Chart
           chart={c}
-          canQuery={Boolean(connection.password || password)}
+          canQuery={connected}
           onContextMenu={(e) => {
             e.preventDefault()
             setEditing(i)
@@ -375,7 +375,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       minHeight: 10,
       maxWidth: 100
     }))
-  }, [errors, +errors, connection, +config, password])
+  }, [errors, +errors, connection, +config, connected])
 
   const createWidget = useCallback((e: React.MouseEvent) => {
     const x = Math.min(Math.round(e.clientX / e.currentTarget.clientWidth * 100), 100 - 30)
@@ -390,7 +390,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       },
       title: 'untitled',
       subtitle: '',
-      xTitle: 'untiled x',
+      xTitle: 'untitled x',
       yTitle: 'untitled y',
       method: {
         type: 'column',
@@ -442,8 +442,8 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
     const pw = (data.get('password') as string | null) ?? ''
 
     setPasswordError(undefined)
-    void testConnection({
-      ...connection,
+    void testConnection(connection.client, {
+      ...connection.details,
       password: pw
     })
       .then((r) => {
@@ -453,10 +453,11 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
   }, [connection])
 
   useEffect(() => {
-    if (connection.password !== undefined || password !== undefined) {
+    if (connection.details.password !== undefined || password !== undefined) {
       void setActiveConnection(connIndex, password)
         .then(getTables)
         .then(setTables)
+        .then(() => setConnected(true))
     }
   }, [connection, connIndex, password])
 
@@ -798,7 +799,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
         end
       />
 
-      <Modal open={connection.password === undefined && password === undefined}>
+      <Modal open={connection.details.password === undefined && password === undefined}>
         <Modal.Header>
           <span>Enter a password to access </span>
           <strong>{connection.name}</strong>

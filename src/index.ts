@@ -1,16 +1,35 @@
 import { Webview } from 'webview-bun'
 import path from 'path'
+import util from 'util'
 import { type } from 'arktype'
 import Knex from 'knex'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
-import inspector from 'knex-schema-inspector'
 import open from 'open'
 
 import { type Chart, type Connection, Config } from './lib/config'
 import * as logger from './lib/logger'
+import { changecwd } from './lib/depcache'
 
-const CONFIG_LOCATION = path.resolve(process.cwd(), './spyglass.json')
+const args = util.parseArgs({
+  args: process.argv,
+  options: {
+    config: {
+      type: 'string'
+    }
+  },
+  allowPositionals: true
+})
+
+const CONFIG_LOCATION = args.values.config ? path.resolve(args.values.config) : path.resolve(process.cwd(), './spyglass.json')
 logger.debug('Config Location:', CONFIG_LOCATION)
+
+const DRIVERS: Record<Connection['client'], string> = {
+  pg: 'pg',
+  sqlite3: 'better-sqlite3',
+  mysql: 'mysql2',
+  oracledb: 'oracledb',
+  tedious: 'tedious'
+}
 
 function loadConfig (): Promise<Config> {
   return Bun.file(CONFIG_LOCATION, { type: 'json' })
@@ -18,7 +37,7 @@ function loadConfig (): Promise<Config> {
     .then((obj) => Config(obj))
     .then((cfg) => {
       if (cfg instanceof type.errors) throw cfg.toTraversalError()
-      logger.info('Config loaded:', cfg)
+      logger.info(`Config loaded; ${cfg.connections.length} connections`)
       return cfg
     })
     .catch((err) => {
@@ -32,18 +51,39 @@ const config = await loadConfig()
 let activeConnection: Knex.Knex | undefined
 
 /** View */
-const webview = new Webview(process.env.NODE_ENV !== 'production')
+const webview = new Webview(/* process.env.NODE_ENV !== 'production' */true)
 
-function constructConnection (options: Connection & { password: string }): Knex.Knex {
+function moduleExists (name: string): boolean {
+  try {
+    Bun.resolveSync(name, import.meta.dirname)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function ensureInstalled (client: Connection['client']): Promise<void> {
+  const driver = DRIVERS[client]
+  const installed = moduleExists(driver)
+
+  if (!installed) {
+    logger.debug('Installing:', driver)
+    await Bun.$`bun install -g ${driver} --no-save`
+      .then(() => logger.debug(driver, 'installed'))
+      .catch(() => logger.error(driver, 'failed to install'))
+  }
+}
+
+async function constructConnection (client: Connection['client'], details: Knex.Knex.StaticConnectionConfig): Promise<Knex.Knex> {
+  using _ = await changecwd()
+
+  await ensureInstalled(client)
+
   return Knex({
-    client: options.client,
+    client,
     connection: {
       application_name: 'Spyglass',
-      user: options.username,
-      password: options.password,
-      host: options.host,
-      port: options.port,
-      database: options.database
+      ...details
     }
   })
 }
@@ -68,35 +108,47 @@ const binds = {
     return await Bun.write(CONFIG_LOCATION, JSON.stringify(config, null, 2))
       .then(() => null)
   },
-  async testConnection (options: Connection & { password: string }): Promise<number | null> {
-    const connection = constructConnection(options)
+  async testConnection (client: Connection['client'], options: Connection['details'] & { password: string }): Promise<number | null> {
+    const details = {
+      host: options.host,
+      port: options.port,
+      username: options.username,
+      password: options.password,
+      database: options.database
+    }
+
+    const connection = await constructConnection(client, details)
 
     const ts = performance.now()
     return await connection.raw('SELECT current_user')
       .then(() => performance.now() - ts)
       .catch(() => null)
+      .finally(() => void connection.destroy())
   },
-  async setActiveConnection (index: number, password?: string): Promise<null> {
+  async setActiveConnection (index: number, password?: string): Promise<number | null> {
     if (activeConnection) {
       void activeConnection.destroy()
       activeConnection = undefined
     }
     if (index === -1) return null
 
-    const connection = structuredClone(config.connections[index])
+    const connection = config.connections[index]
     if (!connection) throw Error('Somehow trying to set nonexistent active connection')
+    const details = structuredClone(connection.details)
+    if (password !== undefined) details.password = password
+    if (details.password === undefined) throw Error('Missing password for connection')
 
-    if (password) connection.password = password
-    if (!connection.password) throw Error('Missing password for connection')
-
-    activeConnection = constructConnection(connection as any)
+    activeConnection = await constructConnection(connection.client, details)
 
     return null
   },
-  getTables (): Promise<Partial<Record<string, Column[]>> | null> {
+  async getTables (): Promise<Partial<Record<string, Column[]>> | null> {
     if (!activeConnection) throw Error('No active connection')
 
-    const spector = inspector(activeConnection)
+    // Dynamically import here to ensure the inspector resolves at runtime
+    // and to avoid potential deadlocks in Bun single-file builds.
+    const { SchemaInspector } = await import('knex-schema-inspector', { with: { type: 'module' } })
+    const spector = SchemaInspector(activeConnection)
 
     const query = activeConnection.client.config.client === 'pg'
       ? activeConnection.raw<{ rows: Array<{ full_table_name: string }> }>(
@@ -128,8 +180,11 @@ WHERE table_type = 'BASE TABLE'
         return null
       })
   },
-  queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc'> & { table: string }): Promise<any[] | null> {
-    if (!activeConnection) throw Error('Attempted to query without an active connection')
+  async queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc'> & { table: string }): Promise<any[] | null> {
+    if (!activeConnection) {
+      logger.error('Attempted to query without an active connection')
+      return null
+    }
 
     const query = activeConnection
       .table(chart.table)
@@ -144,7 +199,7 @@ WHERE table_type = 'BASE TABLE'
     if (chart.sortCol) query.orderBy(chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
     if (chart.limit) query.limit(chart.limit)
 
-    return query
+    return await query
       .finally()
       .catch((err) => {
         logger.error('Failed to execute query', err)
@@ -205,7 +260,7 @@ window.addEventListener('error', (e) => { void logError('Webview Runtime Error:'
 if (process.env.NODE_ENV === 'production') {
   const { default: template } = await import('./view/dist/index.html', { with: { type: 'file' } })
   const compiled = await Bun.file(template).text()
-  webview.init('window.addEventListener(\'contextmenu\', (e) => e.preventDefault(), { capture: true })')
+  webview.init('window.addEventListener("beforeunload", (e) => { e.preventDefault(); e.returnValue = "" })')
   webview.setHTML(compiled)
   webview.runNonBlocking(() => process.exit(0))
 } else {
@@ -221,7 +276,7 @@ if (process.env.NODE_ENV === 'production') {
         })
       }
 
-      const result = await binds[route.slice(1) as keyof typeof binds](...(await req.json().catch(() => []) as [any]))
+      const result = await binds[route.slice(1) as keyof typeof binds](...(await req.json().catch(() => []) as [any, any]))
       return Response.json(result, {
         headers: {
           'Access-Control-Allow-Origin': '*'
@@ -243,7 +298,7 @@ if (process.env.NODE_ENV === 'production') {
 
     logger.debug('Vite running on URL:', url)
     if (!url) throw Error('Unexpected: Vite did not return a local address')
-    webview.init('document.addEventListener("keydown", (e) => { if (e.key === "=") { debugger } })')
+    webview.init('document.addEventListener("keydown", (e) => { if (e.key === ";") { debugger } })')
     webview.navigate(url)
     webview.runNonBlocking(() => process.exit(0))
   }, { once: true })
