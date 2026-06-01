@@ -209,7 +209,29 @@ if (process.env.NODE_ENV === 'production') {
   webview.setHTML(compiled)
   webview.runNonBlocking(() => process.exit(0))
 } else {
-  const worker = new Worker(Bun.resolveSync('./lib/dev/server', import.meta.dir))
+  const api = Bun.serve({
+    async fetch (req) {
+      const route = new URL(req.url).pathname
+
+      if (route === '/_binds') {
+        return Response.json(Object.keys(binds), {
+          headers: {
+            'Access-Control-Allow-Origin': '*'
+          }
+        })
+      }
+
+      const result = await binds[route.slice(1) as keyof typeof binds](...(await req.json().catch(() => []) as [any]))
+      return Response.json(result, {
+        headers: {
+          'Access-Control-Allow-Origin': '*'
+        }
+      })
+    }
+  })
+  logger.debug('Shim API running on URL:', api.url.href)
+
+  const worker = new Worker(Bun.resolveSync('./lib/dev/server', import.meta.dir), { argv: [api.port] })
 
   worker.addEventListener('error', (e) => {
     logger.error('Worker Error:', e.message)

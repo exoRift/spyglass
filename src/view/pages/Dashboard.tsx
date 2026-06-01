@@ -332,8 +332,6 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
   const [config, setConfig, forceUpdate] = useObject(_config, true)
   const connection = config.connections[connIndex]!
 
-  console.debug(+config)
-
   const {
     Dialog: UnsavedDialog,
     handleShow: promptUnsaved
