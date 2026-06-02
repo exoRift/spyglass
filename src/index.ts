@@ -97,7 +97,8 @@ const binds = {
   logDebug: logger.debug,
   async installDriver (driver: string) {
     logger.info('Installing:', driver)
-    await Bun.$`bun install -g ${driver} --no-save`
+
+    await Bun.$`BUN_BE_BUN=1 ${process.execPath} install -g ${driver}`
       .then(() => {
         logger.info(driver, 'installed')
         webview.destroy()
@@ -296,7 +297,10 @@ if (process.env.NODE_ENV === 'production') {
         })
       }
 
-      const result = await binds[route.slice(1) as keyof typeof binds](...(await req.json().catch(() => []) as [any, any]))
+      const bind = route.slice(1) as keyof typeof binds
+      if (!(bind in binds)) return new Response('Not Found', { status: 404 })
+
+      const result = await binds[bind](...(await req.json().catch(() => []) as [any, any]))
       return Response.json(result, {
         headers: {
           'Access-Control-Allow-Origin': '*'
