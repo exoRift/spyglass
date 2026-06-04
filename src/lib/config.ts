@@ -2,8 +2,9 @@ import { type } from 'arktype'
 
 const Join = type({
   table: 'string',
-  baseColumn: 'string',
-  foreignColumn: 'string'
+  type: '"inner" | "left" | "right"',
+  baseColumn: 'string | null',
+  foreignColumn: 'string | null'
 })
 
 const Chart = type({
@@ -27,6 +28,11 @@ const Chart = type({
     type({
       type: '"aggregate_count"',
       x: 'string | null'
+    }),
+    type({
+      type: '"aggregate_count_unique"',
+      x: 'string | null',
+      y: 'string | null'
     }),
     type({
       type: '"custom"',

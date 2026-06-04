@@ -207,13 +207,17 @@ WHERE table_type = 'BASE TABLE'
       return null
     }
 
+    const validJoins = chart.joins?.filter((j) => j.baseColumn && j.foreignColumn) ?? []
+
+    // TODO: Only query the needed columns and embed aggregation at the SQL level.
+    // TODO: For custom map functions, multi-select for which columns to select (auto-alias if overlap)
     const query = activeConnection
       .table(chart.table)
       .select('*')
-    if (chart.joins) {
-      for (const join of chart.joins) {
-        query.join(join.table, `${chart.table}.${join.baseColumn}`, `${join.table}.${join.foreignColumn}`)
-      }
+    for (const join of validJoins) {
+      if (!join.baseColumn || !join.foreignColumn) continue
+
+      query[join.type === 'inner' ? 'join' : join.type === 'left' ? 'leftJoin' : 'rightJoin'](join.table, `${chart.table}.${join.baseColumn}`, '=', `${join.table}.${join.foreignColumn}`)
     }
     if (chart.where) query.whereRaw(chart.where)
 

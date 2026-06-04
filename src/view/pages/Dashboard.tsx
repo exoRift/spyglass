@@ -8,13 +8,13 @@ import type { renderRoute } from '../index'
 import type { Chart } from '../../lib/config'
 
 import { type Layout, type WidgetProps, Dashboard as Dash } from 'dashup'
-import { Alert, Button, Drawer, Form, Input, Join, Modal, Select, Tooltip } from 'react-daisyui'
+import { Alert, Button, Divider, Drawer, Dropdown, Form, Input, Join, Modal, Select, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
 
-import { MdArrowLeft, MdCable, MdDelete, MdDragHandle, MdHelp, MdSave, MdWarning, MdArrowUpward } from 'react-icons/md'
+import { MdArrowLeft, MdCable, MdDelete, MdDragHandle, MdHelp, MdSave, MdWarning, MdArrowUpward, MdAdd } from 'react-icons/md'
 import 'dashup/style.css'
 
-function Chart ({ chart, canQuery, className, onContextMenu, width, height, onError }: { chart: Chart, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
+function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width, height, onError }: { chart: Chart, configSignal: number, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
   const chartContainer = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.EChartsType>(undefined)
 
@@ -42,6 +42,20 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         }
 
         return map.entries().map(([x, y]) => ({ x, y })).toArray()
+      }
+      case 'aggregate_count_unique': {
+        const method = chart.method
+        if (!method.x || !method.y) return []
+
+        const map = new Map<any, Set<any>>()
+        for (const row of rows) {
+          const group = row[chart.method.x!]
+          const value = Number(row[chart.method.y!])
+          const set = map.getOrInsertComputed(group, () => new Set())
+          set.add(value)
+        }
+
+        return map.entries().map(([x, y]) => ({ x, y: y.size })).toArray()
       }
       case 'aggregate_sum': {
         const method = chart.method
@@ -77,7 +91,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
         }
       }
     }
-  }, [rows, chart.method, chart.method.type, onError, (chart.method as any).x, (chart.method as any).y, (chart.method as any).fn])
+  }, [rows, configSignal, chart.method])
 
   useEffect(() => {
     const aborter = new AbortController()
@@ -211,7 +225,7 @@ function Chart ({ chart, canQuery, className, onContextMenu, width, height, onEr
       .then((r) => !aborter.signal.aborted && setRows(r || 'error'))
 
     return () => aborter.abort()
-  }, [canQuery, chart, chart.table, chart.joins, chart.where, chart.limit, chart.sortCol, chart.sortDesc])
+  }, [canQuery, chart, configSignal])
 
   useEffect(() => {
     if (waiting) return
@@ -353,6 +367,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       component: (
         <Chart
           chart={c}
+          configSignal={+config}
           canQuery={connected}
           onContextMenu={(e) => {
             e.preventDefault()
@@ -375,7 +390,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       minHeight: 10,
       maxWidth: 100
     }))
-  }, [errors, +errors, connection, +config, connected])
+  }, [errors, +errors, connection, +config, config, connected])
 
   const createWidget = useCallback((e: React.MouseEvent) => {
     const x = Math.min(Math.round(e.clientX / e.currentTarget.clientWidth * 100), 100 - 30)
@@ -474,6 +489,8 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
         if (x) x.value = ''
         const y = document.getElementById('yColumn') as HTMLInputElement | null
         if (y) y.value = ''
+
+        delete editedChart.joins
       } else if (field === 'method.fn' && typeof value === 'string') {
         value = value
           .replace(/[“”]/g, '"')
@@ -486,6 +503,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
           case 'aggregate_sum':
           case 'column': editedChart.method = { type: val, x: null, y: null }; break
           case 'aggregate_count': editedChart.method = { type: val, x: null }; break
+          case 'aggregate_count_unique': editedChart.method = { type: val, x: null, y: null }; break
           case 'custom': editedChart.method = { type: val, fn: '' }; break
         }
       } else {
@@ -498,6 +516,29 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       setIsUnsaved(true)
     }
   }
+
+  const usableColumns = useMemo(() => {
+    if (!tables || !editedChart?.table) return
+
+    const columns = tables[editedChart.table]
+    if (!columns) return
+
+    for (const join of editedChart.joins ?? []) {
+      const table = tables[join.table]
+
+      if (table) columns.push(...table)
+    }
+
+    return columns.map((c) => {
+      const identifier = `${c.table}.${c.name}`
+
+      return {
+        ...c,
+        identifier,
+        display_name: columns.some((c2) => c2.name === c.name && c !== c2) ? identifier : c.name
+      }
+    })
+  }, [tables, editedChart?.table, editedChart?.joins, +config])
 
   return (
     <div className='flex flex-col w-screen h-screen'>
@@ -528,7 +569,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal]' onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
           <Dash key={dashKey} widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='!transition-none' onChange={updateWidgets} />
-          <div className={twMerge('transition fixed inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
+          <div className={twMerge('transition fixed min-h-screen inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
         </div>
       </div>
 
@@ -536,7 +577,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
         open={editing !== null}
         side={editedChart
           ? (
-            <div className='w-96 min-h-screen bg-base-200 p-6 space-y-4'>
+            <div className='w-96 h-screen overflow-auto bg-base-200 p-6 space-y-4'>
               <div className='flex gap-4 items-center justify-between mb-4'>
                 <h1 className='text-2xl font-bold'>Edit Chart</h1>
 
@@ -566,6 +607,85 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                     <Select.Option value={t} key={t}>{t}</Select.Option>
                   )))}
                 </Select>
+
+                <div className='fieldset w-full'>
+                  {Boolean(editedChart.joins?.length) && (
+                    <Divider vertical>
+                      <span className='text-sm'>Table Joins</span>
+                    </Divider>
+                  )}
+
+                  <div className='flex flex-col gap-4'>
+                    {editedChart.joins?.map((j, i) => (
+                      <div key={j.table}>
+                        <div className='flex gap-4 justify-between'>
+                          <label className='font-semibold'>{j.table}</label>
+
+                          <Select size='xs' defaultValue={j.type} className='w-fit' onChange={(e) => { j.type = e.currentTarget.value as typeof j.type; setIsUnsaved(true) }}>
+                            <Select.Option value='inner'>Inner</Select.Option>
+                            <Select.Option value='left'>Left</Select.Option>
+                            <Select.Option value='right'>Right</Select.Option>
+                          </Select>
+                        </div>
+
+                        <div className='flex gap-4'>
+                          <div className='fieldset w-full grow'>
+                            <label htmlFor={`join_${j.table}_base`} className='label'>
+                              <span className='label-text'>Base Column</span>
+                            </label>
+                            <Select defaultValue={j.baseColumn ?? ''} onChange={(e) => { j.baseColumn = e.currentTarget.value; setIsUnsaved(true) }} className='w-full' id={`join_${j.table}_base`} name={`join_${j.table}_base`}>
+                              <Select.Option value='' disabled>Choose a column</Select.Option>
+
+                              {tables?.[editedChart.table ?? '']?.map((c) =>
+                                <Select.Option key={c.name} value={c.name}>{c.name}</Select.Option>
+                              )}
+                            </Select>
+                          </div>
+
+                          <div className='fieldset w-full grow'>
+                            <label htmlFor={`join_${j.table}_foreign`} className='label'>
+                              <span className='label-text'>Foreign Column</span>
+                            </label>
+                            <Select defaultValue={j.foreignColumn ?? ''} onChange={(e) => { j.foreignColumn = e.currentTarget.value; setIsUnsaved(true) }} className='w-full' id={`join_${j.table}_foreign`} name={`join_${j.table}_foreign`}>
+                              <Select.Option value='' disabled>Choose a column</Select.Option>
+
+                              {tables?.[j.table]?.map((c) => (
+                                <Select.Option key={c.name} value={c.name}>{c.name}</Select.Option>
+                              ))}
+                            </Select>
+                          </div>
+
+                          <div className='fieldset'>
+                            <label className='invisible'>
+                              <span className='label-text'>D</span>
+                            </label>
+
+                            <button className='self-center text-error text-xl cursor-pointer h-9' title='Delete' onClick={() => { if (editedChart.joins?.length === 1) delete editedChart.joins; else editedChart.joins?.splice(i, 1); setIsUnsaved(true) }}>
+                              <MdDelete />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Divider vertical>
+                    <Dropdown open={editedChart.table ? undefined : false}>
+                      <Dropdown.Toggle disabled={!editedChart.table}>
+                        <MdAdd />
+                        <span>Table Join</span>
+                      </Dropdown.Toggle>
+
+                      <Dropdown.Menu>
+                        {(tables && Object.keys(tables).map((t) => (
+                          t === editedChart.table || editedChart.joins?.some((j) => j.table === t)
+                            ? null
+                            : <Dropdown.Item key={t} onClick={() => { editedChart.joins ??= []; editedChart.joins.push({ table: t, type: 'inner', baseColumn: null, foreignColumn: null }); setIsUnsaved(true); (document.activeElement as HTMLElement | null)?.blur() }}>{t}</Dropdown.Item>
+                        )))}
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  </Divider>
+                </div>
               </div>
 
               <div className='flex gap-4 *:grow'>
@@ -576,6 +696,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                   <Select defaultValue={editedChart.method.type} onChange={(e) => editChart('method.type', e.currentTarget.value as Chart['method']['type'])} className='w-full' id='method' name='method'>
                     <Select.Option value='column'>Column Value</Select.Option>
                     <Select.Option value='aggregate_count'>Aggregate by Count</Select.Option>
+                    <Select.Option value='aggregate_count_unique'>Aggregate by Unique Count</Select.Option>
                     <Select.Option value='aggregate_sum'>Aggregate by Sum</Select.Option>
                     <Select.Option value='custom'>Custom Map Function</Select.Option>
                   </Select>
@@ -614,7 +735,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {(tables?.[editedChart.table ?? '']?.map((c) => (
+                                {(usableColumns?.map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
                                 )))}
                               </Select>
@@ -636,7 +757,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {(tables?.[editedChart.table ?? '']?.map((c) => (
+                                {(usableColumns?.map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
                                 )))}
                               </Select>
@@ -662,7 +783,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {(tables?.[editedChart.table ?? '']?.map((c) => (
+                                {(usableColumns?.map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
                                 )))}
                               </Select>
@@ -674,6 +795,54 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <span className='label-text'>Y Axis Title</span>
                             </label>
                             <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
+                          </div>
+                        </>
+                      )
+                    case 'aggregate_count_unique':
+                      return (
+                        <>
+                          <div className='flex gap-4 *:grow'>
+                            <div className='fieldset w-full'>
+                              <label htmlFor='xTitle' className='label'>
+                                <span className='label-text'>X Axis Title</span>
+                              </label>
+                              <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
+                            </div>
+
+                            <div className='fieldset w-full'>
+                              <label htmlFor='table' className='label'>
+                                <span className='label-text'>X Axis Column</span>
+                              </label>
+                              <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
+                                <Select.Option value='' disabled>Choose a column</Select.Option>
+
+                                {(usableColumns?.map((c) => (
+                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                )))}
+                              </Select>
+                            </div>
+                          </div>
+
+                          <div className='flex gap-4 *:grow'>
+                            <div className='fieldset w-full'>
+                              <label htmlFor='yTitle' className='label'>
+                                <span className='label-text'>Y Axis Title</span>
+                              </label>
+                              <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
+                            </div>
+
+                            <div className='fieldset w-full'>
+                              <label htmlFor='yColumn' className='label'>
+                                <span className='label-text'>Y Axis Column</span>
+                              </label>
+                              <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
+                                <Select.Option value='' disabled>Choose a column</Select.Option>
+
+                                {(usableColumns?.map((c) => (
+                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                )))}
+                              </Select>
+                            </div>
                           </div>
                         </>
                       )
@@ -695,7 +864,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {(tables?.[editedChart.table ?? '']?.map((c) => (
+                                {(usableColumns?.map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
                                 )))}
                               </Select>
@@ -717,7 +886,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {(tables?.[editedChart.table ?? '']?.filter((c) => c.numeric_precision !== null).map((c) => (
+                                {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
                                   <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
                                 )))}
                               </Select>
@@ -730,6 +899,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                         <div className='fieldset w-full'>
                           <label htmlFor='mapFn' className='label'>
                             <span className='label-text'>Map Function</span>
+                            {/* TODO: use anchor positioning when released in daisyui 5.6 */}
                             <Tooltip message='JavaScript code. `rows` refers to the array of all rows returned. `return` an array of datapoints `{ x, y }`' className='cursor-help'>
                               <MdHelp />
                             </Tooltip>
@@ -769,7 +939,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                     <Select disabled={!editedChart.table} defaultValue={editedChart.sortCol ?? ''} onChange={(e) => editChart('sortCol', e.currentTarget.value)} className='w-full join-item' id='sortCol' name='sortCol'>
                       <Select.Option value=''>No Order</Select.Option>
 
-                      {(tables?.[editedChart.table ?? '']?.map((c) => (
+                      {(usableColumns?.map((c) => (
                         <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
                       )))}
                     </Select>

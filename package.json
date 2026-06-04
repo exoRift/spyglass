@@ -23,7 +23,7 @@
     "oracledb": "^6.10.0",
     "pg": "^8.21.0",
     "pg-query-stream": "^4.15.0",
-    "react-exo-hooks": "^2.3.0",
+    "react-exo-hooks": "^2.3.1",
     "safer-eval": "^1.3.6",
     "tedious": "^19.2.1",
     "webview-bun": "github:exoRift/webview-bun#a51742028afd048ec58bc8eb90fa6870bab7810e"
