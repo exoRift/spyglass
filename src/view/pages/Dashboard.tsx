@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import * as echarts from 'echarts'
 import { useMap, useObject } from 'react-exo-hooks'
@@ -13,6 +13,8 @@ import { DebouncedInput } from '../components/DebouncedInput'
 
 import { MdArrowLeft, MdCable, MdDelete, MdDragHandle, MdHelp, MdSave, MdWarning, MdArrowUpward, MdAdd } from 'react-icons/md'
 import 'dashup/style.css'
+import { Multiselect } from '../components/Multiselect'
+import { createPortal } from 'react-dom'
 
 function Chart ({ chart, configSignal, tables, canQuery, className, onContextMenu, width, height, onError }: { chart: Chart, configSignal: number, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
   const chartContainer = useRef<HTMLDivElement>(null)
@@ -185,7 +187,10 @@ function Chart ({ chart, configSignal, tables, canQuery, className, onContextMen
         } else if (r === null) {
           setRows([])
           onError?.(new Error('Failed to fetch data'))
-        } else setRows(r)
+        } else {
+          setRows(r)
+          onError?.(undefined)
+        }
       })
 
     return () => aborter.abort()
@@ -300,6 +305,47 @@ function Chart ({ chart, configSignal, tables, canQuery, className, onContextMen
           <div className='h-0 grow' ref={chartContainer} />
         </div>
       </div>
+
+      <div className={twMerge('absolute inset-0 flex justify-center items-center text-center text-lg font-bold text-base-content/50 pointer-events-none', chart.table && 'hidden')}>Right click on me to edit my properties!</div>
+    </>
+  )
+}
+
+function MapFunctionHelpButton (): React.ReactNode {
+  const { Dialog, handleShow } = Modal.useDialog()
+
+  return (
+    <>
+      <button title='Map Function Help' className='cursor-pointer' onClick={handleShow}>
+        <MdHelp />
+      </button>
+
+      {createPortal(
+        (
+          <Dialog>
+            <Modal.Header>Custom Map Function</Modal.Header>
+            <Modal.Body>
+              <p className='prose text-wrap text-sm text-justify'>
+                This input takes JavaScript code.
+                The <code>rows</code> variable contains all of the rows returned.
+                The selected columns will be the ones chosen above (pay attention to dots being replaced with underscores).
+                <br /><br />
+                A column can be accessed with <code>rows[INDEX].COLUMN_NAME</code>.
+                Be sure to <code>return</code> an array of datapoints <code>&#123; x, y &#125;</code>.
+                If <code>x</code> can be interpreted as a date from a string, it will be. <code>y</code> should be a number.
+                <br /><br />
+                You can optionally install <a className='link' href='https://www.npmjs.com/package/data-forge' target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void openLink(e.currentTarget.href) }}>data-forge</a> and you will automatically be able to use it with the <code>forge</code> variable which is df's default export.
+              </p>
+            </Modal.Body>
+            <Modal.Actions>
+              <form method='dialog'>
+                <Button>Close</Button>
+              </form>
+            </Modal.Actions>
+          </Dialog>
+        ),
+        document.body
+      )}
     </>
   )
 }
@@ -378,7 +424,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       minHeight: 10,
       maxWidth: 100
     }))
-  }, [errors, +errors, connection, +config, config, connected])
+  }, [errors, +errors, connection, +config, config, connected, tables])
 
   const createWidget = useCallback((e: React.MouseEvent) => {
     const x = Math.min(Math.round(e.clientX / e.currentTarget.clientWidth * 100), 100 - 30)
@@ -471,8 +517,6 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       if (field === 'table') {
         if ('x' in editedChart.method) editedChart.method.x = null
         if ('y' in editedChart.method) editedChart.method.y = null
-        const method = document.getElementById('method') as HTMLSelectElement | null
-        if (method) method.value = 'column'
         const x = document.getElementById('xColumn') as HTMLInputElement | null
         if (x) x.value = ''
         const y = document.getElementById('yColumn') as HTMLInputElement | null
@@ -492,7 +536,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
           case 'column': editedChart.method = { type: val, x: null, y: null }; break
           case 'aggregate_count': editedChart.method = { type: val, x: null }; break
           case 'aggregate_count_unique': editedChart.method = { type: val, x: null, y: null }; break
-          case 'custom': editedChart.method = { type: val, fn: '' }; break
+          case 'custom': editedChart.method = { type: val, columns: [], fn: '' }; break
         }
       } else {
         const accesses = field.split('.')
@@ -658,8 +702,8 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                   </div>
 
                   <Divider vertical>
-                    <Dropdown open={editedChart.table ? undefined : false}>
-                      <Dropdown.Toggle disabled={!editedChart.table}>
+                    <Dropdown>
+                      <Dropdown.Toggle disabled={!editedChart.table} className='has-[>:disabled]:pointer-events-none'>
                         <MdAdd />
                         <span>Table Join</span>
                       </Dropdown.Toggle>
@@ -884,21 +928,31 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                       )
                     case 'custom':
                       return (
-                        <div className='fieldset w-full'>
-                          <label htmlFor='mapFn' className='label'>
-                            <span className='label-text'>Map Function</span>
-                            {/* TODO: use anchor positioning when released in daisyui 5.6 */}
-                            <Tooltip message='JavaScript code. `rows` refers to the array of all rows returned. `return` an array of datapoints `{ x, y }`' className='cursor-help'>
-                              <MdHelp />
-                            </Tooltip>
-                          </label>
-                          <DebouncedInput Comp='textarea' id='mapFn' name='mapFn' placeholder='JS Code...' defaultValue={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
-                          {Boolean(editing && errors.get(editing)) && (
-                            <label className='label' htmlFor='mapFn'>
-                              <span className='label-text text-error'>{errors.get(editing!)!.message}</span>
+                        <>
+                          <div className='fieldset'>
+                            <label htmlFor='customColumns' className='label'>
+                              <span className='label-text'>Columns to Query</span>
                             </label>
-                          )}
-                        </div>
+                            <Multiselect disabled={!editedChart.table} defaultValue={editedChart.method.columns} onValueChange={(v) => editChart('method.columns', v)} className='w-full' color='ghost' unit='column' id='customColumns' name='customColumns'>
+                              {(usableColumns?.map((c) => (
+                                <Multiselect.Option value={c.display_name} key={c.display_name}>{c.display_name.replaceAll('.', '_')}</Multiselect.Option>
+                              )))}
+                            </Multiselect>
+                          </div>
+
+                          <div className='fieldset'>
+                            <label htmlFor='mapFn' className='label'>
+                              <span className='label-text'>Map Function</span>
+                              <MapFunctionHelpButton />
+                            </label>
+                            <DebouncedInput delay={500} className='font-mono' Comp='textarea' id='mapFn' name='mapFn' placeholder='JS Code...' defaultValue={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
+                            {Boolean(editing && errors.get(editing)) && (
+                              <label className='label' htmlFor='mapFn'>
+                                <span className='label-text text-error text-wrap'>{errors.get(editing!)!.message}</span>
+                              </label>
+                            )}
+                          </div>
+                        </>
                       )
                   }
                 })()}

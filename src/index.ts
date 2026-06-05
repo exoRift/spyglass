@@ -5,6 +5,7 @@ import { type } from 'arktype'
 import Knex from 'knex'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 import open from 'open'
+import vm from 'vm'
 
 import { type Chart, type Connection, Config } from './lib/config'
 import * as logger from './lib/logger'
@@ -201,7 +202,7 @@ const binds = {
         return null
       })
   },
-  async queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc' | 'method'> & { table: string }): Promise<any[] | null> {
+  async queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc' | 'method'> & { table: string }): Promise<any[] | null | string> {
     if (!activeConnection) {
       logger.error('Attempted to query without an active connection')
       return null
@@ -251,7 +252,7 @@ const binds = {
             .groupBy(chart.method.x)
         }
         break
-      case 'aggregate_sum': {
+      case 'aggregate_sum':
         if (chart.method.x && chart.method.y) {
           query
             .select({
@@ -261,31 +262,37 @@ const binds = {
             .groupBy(chart.method.x)
         }
         break
-      }
+      case 'custom':
+        query
+          .select(chart.method.columns.map((c) => activeConnection!.column(c).as(c.replaceAll('.', '_'))))
+        break
     }
 
-    //     case 'custom': {
-    //         const fn =
-    // `(() => {
-    //   ${chart.method.fn.replace(/eval|function(.*)|setTimeout|setInterval|Worker(.*)|import(.*)|require(.*)/i, '')}
-    // })()`
-    //         try {
-    //           const value = saferEval(fn, { rows, Map, Set, Object, Array })
-    //           if (!Array.isArray(value)) {
-    //             setTimeout(() => onError?.(new Error('Returned value is not an array')))
-    //             return []
-    //           }
-
-    //           if (!('x' in value[0]) || !('y' in value[0])) setTimeout(() => onError?.(new Error('Warning: value[0] does not have an x and y property')))
-    //           else setTimeout(() => onError?.(undefined))
-    //           return value as Array<{ x: any, y: any }>
-    //         } catch (err) {
-    //           setTimeout(() => onError?.(err as Error))
-    //           return []
-    //         }
-    //       }
-
     return await query
+      .then(async (rows) => {
+        if (chart.method.type === 'custom') {
+          const script = new vm.Script(`
+            (() => {
+              ${chart.method.fn.replaceAll(/import|require/g, '')}
+            })()
+          `)
+
+          try {
+            const value = script.runInNewContext({ rows, forge: (await import('data-forge').catch(() => ({ default: undefined }))).default, log: logger.debug /* TEMP */ })
+
+            if (!Array.isArray(value)) return 'Returned value is not an array'
+            if (!('x' in value[0]) || !('y' in value[0])) return 'Santi Check: return[0] does not have an x and y property'
+
+            return value
+          } catch (err: any) {
+            if ('message' in err) return err.message
+            else {
+              logger.error(err)
+              return 'Unknown Error'
+            }
+          }
+        } else return rows
+      })
       .finally()
       .catch((err) => {
         logger.error('Failed to execute query', err)

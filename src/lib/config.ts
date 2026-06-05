@@ -36,6 +36,7 @@ const Chart = type({
     }),
     type({
       type: '"custom"',
+      columns: 'string[]',
       fn: 'string'
     })
   ),
