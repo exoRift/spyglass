@@ -54,33 +54,22 @@ let activeConnection: Knex.Knex | undefined
 /** View */
 const webview = new Webview(/* process.env.NODE_ENV !== 'production' */true)
 
-function moduleExists (name: string): boolean {
-  try {
-    Bun.resolveSync(name, import.meta.dirname)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function driverIsInstalled (client: Connection['client']): boolean {
-  const driver = DRIVERS[client]
-  const installed = moduleExists(driver)
-
-  if (!installed) {
-    logger.info(`Alerting user to missing ${client} driver (${driver})`)
-    webview.eval(`window._missingDriver = '${driver}'; document.getElementById('driver-name').innerText = '${driver}'; document.getElementById('client-name').innerText = '${client}'; document.getElementById('driver-modal').showModal()`)
-    return false
-  }
-
-  return true
+function moduleExists (name: string): Promise<boolean> {
+  return Bun.resolve(name, import.meta.dirname)
+    .then(() => true)
+    .catch(() => false)
 }
 
 async function constructConnection (client: Connection['client'], details: Knex.Knex.StaticConnectionConfig): Promise<Knex.Knex | undefined> {
   using _ = await changecwd()
 
-  const installed = driverIsInstalled(client)
-  if (!installed) return undefined
+  const driver = DRIVERS[client]
+  const installed = await moduleExists(driver)
+  if (!installed) {
+    logger.info(`Alerting user to missing ${client} driver (${driver})`)
+    webview.eval(`window._missingDriver = '${driver}'; document.getElementById('driver-name').innerText = '${driver}'; document.getElementById('client-name').innerText = '${client}'; document.getElementById('driver-modal').showModal()`)
+    return undefined
+  }
 
   return Knex({
     client,
@@ -96,18 +85,25 @@ const binds = {
   logWarn: logger.warn,
   logError: logger.error,
   logDebug: logger.debug,
-  async installDriver (driver: string) {
+  async hasDataForge () {
+    using _ = await changecwd()
+    return await moduleExists('data-forge')
+  },
+  async installDriver (driver: string, noRestart?: true) {
     logger.info('Installing:', driver)
 
     await Bun.$`BUN_BE_BUN=1 ${process.execPath} install -g ${driver}`
       .then(() => {
         logger.info(driver, 'installed')
-        webview.destroy()
-        process.execve!(
-          process.execPath,
-          [process.execPath, ...process.argv.slice(1)],
-          process.env
-        )
+
+        if (!noRestart) {
+          webview.destroy()
+          process.execve!(
+            process.execPath,
+            [process.execPath, ...process.argv.slice(1)],
+            process.env
+          )
+        }
       })
       .catch(() => logger.error(driver, 'failed to install'))
   },
@@ -271,6 +267,8 @@ const binds = {
     return await query
       .then(async (rows) => {
         if (chart.method.type === 'custom') {
+          using _ = await changecwd()
+
           const script = new vm.Script(`
             (() => {
               ${chart.method.fn.replaceAll(/import|require/g, '')}
@@ -278,7 +276,18 @@ const binds = {
           `)
 
           try {
-            const value = script.runInNewContext({ rows, forge: (await import('data-forge').catch(() => ({ default: undefined }))).default, log: logger.debug /* TEMP */ })
+            logger.debug('Running custom map function')
+
+            const value = script.runInNewContext(
+              {
+                rows,
+                forge: (await import('data-forge').catch(() => ({ default: undefined }))).default,
+                log: logger.debug.bind('MAPFN')
+              },
+              {
+                timeout: 5000
+              }
+            )
 
             if (!Array.isArray(value)) return 'Returned value is not an array'
             if (!('x' in value[0]) || !('y' in value[0])) return 'Santi Check: return[0] does not have an x and y property'
@@ -315,6 +324,8 @@ declare global {
   var logWarn: Promisify<typeof binds.logWarn>
   var logError: Promisify<typeof binds.logError>
   var logDebug: Promisify<typeof binds.logDebug>
+  var hasDataForge: Promisify<typeof binds.hasDataForge>
+  var installDriver: Promisify<typeof binds.installDriver>
   var openLink: Promisify<typeof binds.openLink>
   var getConfig: Promisify<typeof binds.getConfig>
   var saveConfig: Promisify<typeof binds.saveConfig>

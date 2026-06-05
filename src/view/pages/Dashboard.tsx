@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import * as echarts from 'echarts'
-import { useMap, useObject } from 'react-exo-hooks'
+import { useMap, useObject, usePromise } from 'react-exo-hooks'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 
 import type { renderRoute } from '../index'
@@ -324,17 +324,22 @@ function MapFunctionHelpButton (): React.ReactNode {
         (
           <Dialog>
             <Modal.Header>Custom Map Function</Modal.Header>
-            <Modal.Body>
-              <p className='prose text-wrap text-sm text-justify'>
+            <Modal.Body className='prose text-wrap text-sm text-justify space-y-4'>
+              <p>
                 This input takes JavaScript code.
                 The <code>rows</code> variable contains all of the rows returned.
                 The selected columns will be the ones chosen above (pay attention to dots being replaced with underscores).
-                <br /><br />
+              </p>
+              <p>
                 A column can be accessed with <code>rows[INDEX].COLUMN_NAME</code>.
                 Be sure to <code>return</code> an array of datapoints <code>&#123; x, y &#125;</code>.
                 If <code>x</code> can be interpreted as a date from a string, it will be. <code>y</code> should be a number.
-                <br /><br />
+              </p>
+              <p>
                 You can optionally install <a className='link' href='https://www.npmjs.com/package/data-forge' target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void openLink(e.currentTarget.href) }}>data-forge</a> and you will automatically be able to use it with the <code>forge</code> variable which is df's default export.
+              </p>
+              <p>
+                The <code>log</code> function will log your contents to the Spyglass console (run Spyglass from a command line to access)
               </p>
             </Modal.Body>
             <Modal.Actions>
@@ -392,6 +397,8 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
 
   const [password, setPassword] = useState<string>()
   const [passwordError, setPasswordError] = useState<string>()
+
+  const { result: isForgeInstalled = true } = usePromise(() => () => hasDataForge(), [])
 
   const charts = useMemo(() => {
     return connection.charts.map<WidgetProps>((c, i) => ({
@@ -946,6 +953,9 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <MapFunctionHelpButton />
                             </label>
                             <DebouncedInput delay={500} className='font-mono' Comp='textarea' id='mapFn' name='mapFn' placeholder='JS Code...' defaultValue={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
+                            {!isForgeInstalled && (
+                              <Button size='xs' color='neutral' onClick={() => (document.getElementById('forge-modal') as HTMLDialogElement).showModal()}>Install DataForge (optional)</Button>
+                            )}
                             {Boolean(editing && errors.get(editing)) && (
                               <label className='label' htmlFor='mapFn'>
                                 <span className='label-text text-error text-wrap'>{errors.get(editing!)!.message}</span>

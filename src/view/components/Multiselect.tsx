@@ -32,10 +32,6 @@ export function Multiselect ({
     if (forcedValue !== undefined) checked.reset(forcedValue)
   }, [checked, forcedValue])
 
-  useEffect(() => {
-    onValueChange?.(Array.from(checked))
-  }, [checked, +checked])
-
   return (
     <Dropdown className='has-[>:disabled]:!pointer-events-none'>
       {Boolean(name) && (
@@ -56,7 +52,7 @@ export function Multiselect ({
           const label = child.props.children ?? ''
 
           return (
-            <Dropdown.Item onClick={() => checked.toggle(value)}>
+            <Dropdown.Item onClick={() => { checked.toggle(value); onValueChange?.(Array.from(checked)) }}>
               <Checkbox readOnly size='sm' checked={checked.has(value)} />
 
               <span className='ml-1'>{label}</span>

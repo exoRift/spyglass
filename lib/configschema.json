@@ -17,6 +17,12 @@
                     {
                       "type": "object",
                       "properties": {
+                        "columns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
                         "fn": {
                           "type": "string"
                         },
@@ -25,6 +31,7 @@
                         }
                       },
                       "required": [
+                        "columns",
                         "fn",
                         "type"
                       ]
@@ -85,6 +92,39 @@
                       "required": [
                         "type",
                         "x"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "aggregate_count_unique"
+                        },
+                        "x": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "y": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "x",
+                        "y"
                       ]
                     }
                   ]
@@ -147,19 +187,41 @@
                     "type": "object",
                     "properties": {
                       "baseColumn": {
-                        "type": "string"
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "foreignColumn": {
-                        "type": "string"
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "table": {
                         "type": "string"
+                      },
+                      "type": {
+                        "enum": [
+                          "inner",
+                          "left",
+                          "right"
+                        ]
                       }
                     },
                     "required": [
                       "baseColumn",
                       "foreignColumn",
-                      "table"
+                      "table",
+                      "type"
                     ]
                   }
                 },
