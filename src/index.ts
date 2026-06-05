@@ -173,12 +173,12 @@ const binds = {
 
     const query = activeConnection.client.config.client === 'pg'
       ? activeConnection.raw<{ rows: Array<{ full_table_name: string }> }>(
-`
-SELECT table_schema || '.' || table_name AS full_table_name
-FROM information_schema.tables
-WHERE table_type = 'BASE TABLE'
-  AND table_schema NOT IN ('pg_catalog', 'information_schema')
-`
+        `
+          SELECT table_schema || '.' || table_name AS full_table_name
+          FROM information_schema.tables
+          WHERE table_type = 'BASE TABLE'
+            AND table_schema NOT IN ('pg_catalog', 'information_schema')
+        `
       )
         .then(({ rows }) => rows.map((r) => r.full_table_name))
       : spector.tables()
@@ -201,7 +201,7 @@ WHERE table_type = 'BASE TABLE'
         return null
       })
   },
-  async queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc'> & { table: string }): Promise<any[] | null> {
+  async queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc' | 'method'> & { table: string }): Promise<any[] | null> {
     if (!activeConnection) {
       logger.error('Attempted to query without an active connection')
       return null
@@ -211,9 +211,7 @@ WHERE table_type = 'BASE TABLE'
 
     // TODO: Only query the needed columns and embed aggregation at the SQL level.
     // TODO: For custom map functions, multi-select for which columns to select (auto-alias if overlap)
-    const query = activeConnection
-      .table(chart.table)
-      .select('*')
+    const query = activeConnection(chart.table)
     for (const join of validJoins) {
       if (!join.baseColumn || !join.foreignColumn) continue
 
@@ -223,6 +221,69 @@ WHERE table_type = 'BASE TABLE'
 
     if (chart.sortCol) query.orderBy(chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
     if (chart.limit) query.limit(chart.limit)
+
+    switch (chart.method.type) {
+      case 'column':
+        if (chart.method.x && chart.method.y) {
+          query.select({
+            x: chart.method.x,
+            y: chart.method.y
+          })
+        }
+        break
+      case 'aggregate_count':
+        if (chart.method.x) {
+          query
+            .select({
+              x: chart.method.x,
+              y: 'COUNT(*)'
+            })
+            .groupBy(chart.method.x)
+        }
+        break
+      case 'aggregate_count_unique':
+        if (chart.method.x && chart.method.y) {
+          query
+            .select({
+              x: chart.method.x,
+              y: activeConnection.raw('COUNT(DISTINCT ??)', chart.method.y)
+            })
+            .groupBy(chart.method.x)
+        }
+        break
+      case 'aggregate_sum': {
+        if (chart.method.x && chart.method.y) {
+          query
+            .select({
+              x: chart.method.x,
+              y: activeConnection.raw('SUM(??)', chart.method.y)
+            })
+            .groupBy(chart.method.x)
+        }
+        break
+      }
+    }
+
+    //     case 'custom': {
+    //         const fn =
+    // `(() => {
+    //   ${chart.method.fn.replace(/eval|function(.*)|setTimeout|setInterval|Worker(.*)|import(.*)|require(.*)/i, '')}
+    // })()`
+    //         try {
+    //           const value = saferEval(fn, { rows, Map, Set, Object, Array })
+    //           if (!Array.isArray(value)) {
+    //             setTimeout(() => onError?.(new Error('Returned value is not an array')))
+    //             return []
+    //           }
+
+    //           if (!('x' in value[0]) || !('y' in value[0])) setTimeout(() => onError?.(new Error('Warning: value[0] does not have an x and y property')))
+    //           else setTimeout(() => onError?.(undefined))
+    //           return value as Array<{ x: any, y: any }>
+    //         } catch (err) {
+    //           setTimeout(() => onError?.(err as Error))
+    //           return []
+    //         }
+    //       }
 
     return await query
       .finally()

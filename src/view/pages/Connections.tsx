@@ -242,7 +242,7 @@ export default function Connections ({ navigate }: { navigate: typeof renderRout
           </Table.Head>
           <Table.Body>
             {config.connections.map((c, i) => (
-              <Table.Row key={c.name} className='transition not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connection: i })}>
+              <Table.Row key={c.name} className='transition-colors duration-300 not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connection: i })}>
                 {envToBadge(c.environment)}
                 <span>{c.name}</span>
                 <span>{c.details.username}</span>

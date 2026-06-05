@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import * as echarts from 'echarts'
-import saferEval from 'safer-eval'
 import { useMap, useObject } from 'react-exo-hooks'
+import type { Column } from 'knex-schema-inspector/dist/types/column'
 
 import type { renderRoute } from '../index'
 import type { Chart } from '../../lib/config'
@@ -14,97 +14,40 @@ import { DebouncedInput } from '../components/DebouncedInput'
 import { MdArrowLeft, MdCable, MdDelete, MdDragHandle, MdHelp, MdSave, MdWarning, MdArrowUpward, MdAdd } from 'react-icons/md'
 import 'dashup/style.css'
 
-function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width, height, onError }: { chart: Chart, configSignal: number, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
+function Chart ({ chart, configSignal, tables, canQuery, className, onContextMenu, width, height, onError }: { chart: Chart, configSignal: number, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
   const chartContainer = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.EChartsType>(undefined)
+  const isAnimating = useRef(true)
 
   const [waiting, setWaiting] = useState(true)
-  const [rows, setRows] = useState<any[] | 'loading' | 'error'>('loading')
+  const [rows, setRows] = useState<any[]>([])
 
-  const mappedRows = useMemo(() => {
-    if (typeof rows === 'string') return rows
+  const resize = useCallback(() => {
+    function _resize (): void {
+      requestAnimationFrame(() => chartRef.current?.resize())
 
-    switch (chart.method.type) {
-      case 'column': {
-        const method = chart.method
-        if (!method.x || !method.y) return []
-
-        return rows.map((r) => ({ x: r[method.x!], y: r[method.y!] }))
-      }
-      case 'aggregate_count': {
-        const method = chart.method
-        if (!method.x) return []
-
-        const map = new Map<any, number>()
-        for (const row of rows) {
-          const group = row[chart.method.x!]
-          map.set(group, (map.get(group) ?? 0) + 1)
-        }
-
-        return map.entries().map(([x, y]) => ({ x, y })).toArray()
-      }
-      case 'aggregate_count_unique': {
-        const method = chart.method
-        if (!method.x || !method.y) return []
-
-        const map = new Map<any, Set<any>>()
-        for (const row of rows) {
-          const group = row[chart.method.x!]
-          const value = Number(row[chart.method.y!])
-          const set = map.getOrInsertComputed(group, () => new Set())
-          set.add(value)
-        }
-
-        return map.entries().map(([x, y]) => ({ x, y: y.size })).toArray()
-      }
-      case 'aggregate_sum': {
-        const method = chart.method
-        if (!method.x || !method.y) return []
-
-        const map = new Map<any, number>()
-        for (const row of rows) {
-          const group = row[chart.method.x!]
-          const value = Number(row[chart.method.y!])
-          map.set(group, (map.get(group) ?? 0) + value)
-        }
-
-        return map.entries().map(([x, y]) => ({ x, y })).toArray()
-      }
-      case 'custom': {
-        const fn =
-`(() => {
-  ${chart.method.fn.replace(/eval|function(.*)|setTimeout|setInterval|Worker(.*)|import(.*)|require(.*)/i, '')}
-})()`
-        try {
-          const value = saferEval(fn, { rows, Map, Set, Object, Array })
-          if (!Array.isArray(value)) {
-            setTimeout(() => onError?.(new Error('Returned value is not an array')))
-            return []
-          }
-
-          if (!('x' in value[0]) || !('y' in value[0])) setTimeout(() => onError?.(new Error('Warning: value[0] does not have an x and y property')))
-          else setTimeout(() => onError?.(undefined))
-          return value as Array<{ x: any, y: any }>
-        } catch (err) {
-          setTimeout(() => onError?.(err as Error))
-          return []
-        }
-      }
+      chartRef.current?.off('finished', _resize)
     }
-  }, [rows, configSignal, chart.method])
+
+    if (isAnimating.current) chartRef.current?.on('finished', _resize)
+    else _resize()
+  }, [])
 
   useEffect(() => {
     const aborter = new AbortController()
 
-    chartContainer.current
+    const widget = chartContainer.current
       ?.closest('.dashup-widget')
-      ?.addEventListener('transitionend', () => setWaiting(false), { once: true, passive: true, signal: aborter.signal })
+
+    widget
+      ?.addEventListener('transitionend', (e) => e.target === widget && setWaiting(false), { once: true, passive: true, signal: aborter.signal })
 
     return () => aborter.abort()
   }, [])
 
   useEffect(() => {
     if (waiting) return
+
     const theme = {
       backgroundColor: 'var(--color-base-200)',
       textStyle: {
@@ -172,6 +115,11 @@ function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width
             color: 'var(--color-base-300)'
           }
         }
+      },
+      pie: {
+        label: {
+          color: 'var(--color-base-content)'
+        }
       }
     }
 
@@ -180,13 +128,17 @@ function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width
     chartRef.current.group = 'dashboard'
     echarts.connect('dashboard')
 
-    chartContainer.current
-      ?.closest('.dashup-widget')
-      ?.addEventListener('transitionend', () => {
-        requestAnimationFrame(() => chartRef.current?.resize())
-      }, { passive: true, signal: aborter.signal })
-
     const widget = chartContainer.current?.closest('.dashup-widget')
+    widget
+      ?.addEventListener(
+        'transitionend',
+        resize,
+        { passive: true, signal: aborter.signal }
+      )
+
+    function onFinished (): void {
+      isAnimating.current = false
+    }
 
     function onTipShow (): void {
       widget?.classList.add('!overflow-visible')
@@ -195,6 +147,7 @@ function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width
       widget?.classList.remove('!overflow-visible')
     }
 
+    chartRef.current.on('finished', onFinished)
     chartRef.current.on('showTip', onTipShow)
     chartRef.current.on('hideTip', onTipHide)
 
@@ -207,6 +160,7 @@ function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width
 
     return () => {
       aborter.abort()
+      chartRef.current?.off('finished', onFinished)
       chartRef.current?.off('showTip', onTipShow)
       chartRef.current?.off('hideTip', onTipHide)
       chartRef.current?.dispose()
@@ -222,7 +176,17 @@ function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width
     }
 
     void queryRows(chart as typeof chart & { table: string })
-      .then((r) => !aborter.signal.aborted && setRows(r || 'error'))
+      .then((r) => {
+        if (aborter.signal.aborted) return
+
+        if (typeof r === 'string') {
+          setRows([])
+          onError?.(new Error(r))
+        } else if (r === null) {
+          setRows([])
+          onError?.(new Error('Failed to fetch data'))
+        } else setRows(r)
+      })
 
     return () => aborter.abort()
   }, [canQuery, chart, configSignal])
@@ -230,9 +194,20 @@ function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width
   useEffect(() => {
     if (waiting) return
 
-    const figuredType = typeof mappedRows === 'string' || isNaN(+new Date(mappedRows[0]?.x))
-      ? 'category'
-      : 'time'
+    isAnimating.current = true
+    chartRef.current?.resize()
+
+    let isTimeXAxis
+    if (tables && chart.table && 'x' in chart.method && chart.method.x) {
+      const x = chart.method.x
+
+      const column = tables[chart.table]?.find((c) => c.name === x)
+      isTimeXAxis = column?.data_type.includes('date') || column?.data_type.includes('time')
+    } else isTimeXAxis = !isNaN(+new Date(rows[0]?.x))
+
+    const figuredType = isTimeXAxis
+      ? 'time'
+      : 'category'
     chartRef.current?.setOption({
       animation: true,
       title: {
@@ -241,7 +216,17 @@ function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width
         left: 'center'
       },
       tooltip: {
-        trigger: 'axis'
+        trigger: chart.style === 'pie' ? 'item' : 'axis',
+        formatter: chart.style === 'pie'
+          ? (params: any) => {
+            return `
+              ${params.marker}
+              ${params.name}<br/>
+              <strong>${params.value.toLocaleString()}</strong>
+              (<strong>${params.percent}%</strong>)
+            `
+          }
+          : undefined
       },
       legend: {
         show: true,
@@ -274,32 +259,34 @@ function Chart ({ chart, configSignal, canQuery, className, onContextMenu, width
         }
         : undefined
     } satisfies echarts.EChartsOption)
-  }, [waiting, mappedRows, chart.title, chart.subtitle, chart.method, chart.style])
+  }, [waiting, rows, tables, chart.table, chart.title, chart.subtitle, chart.method, chart.style])
 
   useEffect(() => {
-    if (waiting || typeof mappedRows === 'string') return
+    if (waiting) return
+
+    isAnimating.current = true
+    chartRef.current?.resize()
 
     chartRef.current?.setOption({
       xAxis: chart.style === 'pie'
         ? undefined
         : {
-          data: mappedRows.map((r) => r.x)
+          data: rows.map((r) => r.x)
         },
       series: [{
         name: 'Series 1',
         type: chart.style,
         data: chart.style === 'pie'
-          ? mappedRows.map((r) => ({ name: r.x, value: r.y }))
-          : mappedRows.map((r) => ({ value: [r.x, r.y] }))
+          ? rows.map((r) => ({ name: r.x, value: parseFloat(r.y) }))
+          : rows.map((r) => ({ value: [r.x, parseFloat(r.y)] }))
       } satisfies echarts.SeriesOption]
     })
-  }, [waiting, chart.style, mappedRows])
+  }, [waiting, chart.style, rows])
 
   useEffect(() => {
     if (waiting) return
-    requestAnimationFrame(() => {
-      chartRef.current?.resize()
-    })
+
+    requestAnimationFrame(resize)
   }, [width, height])
 
   return (
@@ -367,6 +354,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       component: (
         <Chart
           chart={c}
+          tables={tables}
           configSignal={+config}
           canQuery={connected}
           onContextMenu={(e) => {
@@ -520,13 +508,13 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
   const usableColumns = useMemo(() => {
     if (!tables || !editedChart?.table) return
 
-    const columns = tables[editedChart.table]
+    let columns = tables[editedChart.table]
     if (!columns) return
 
     for (const join of editedChart.joins ?? []) {
       const table = tables[join.table]
 
-      if (table) columns.push(...table)
+      if (table) columns = columns.concat(table)
     }
 
     return columns.map((c) => {
@@ -736,7 +724,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
                                 {(usableColumns?.map((c) => (
-                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
                                 )))}
                               </Select>
                             </div>
@@ -757,8 +745,8 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                               <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                                {(usableColumns?.map((c) => (
-                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
+                                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
                                 )))}
                               </Select>
                             </div>
@@ -784,7 +772,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
                                 {(usableColumns?.map((c) => (
-                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
                                 )))}
                               </Select>
                             </div>
@@ -817,7 +805,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
                                 {(usableColumns?.map((c) => (
-                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
                                 )))}
                               </Select>
                             </div>
@@ -839,7 +827,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
                                 {(usableColumns?.map((c) => (
-                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
                                 )))}
                               </Select>
                             </div>
@@ -865,7 +853,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
                                 {(usableColumns?.map((c) => (
-                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
                                 )))}
                               </Select>
                             </div>
@@ -887,7 +875,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
                                 {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
-                                  <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
                                 )))}
                               </Select>
                             </div>
@@ -940,7 +928,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
                       <Select.Option value=''>No Order</Select.Option>
 
                       {(usableColumns?.map((c) => (
-                        <Select.Option value={c.name} key={c.name}>{c.name}</Select.Option>
+                        <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
                       )))}
                     </Select>
                   </div>
