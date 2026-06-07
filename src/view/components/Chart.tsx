@@ -1,0 +1,352 @@
+import * as echarts from 'echarts'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { twMerge } from 'tailwind-merge'
+
+import type { Column } from 'knex-schema-inspector/dist/types/column'
+import type { Chart as ChartConfig } from '../../lib/config'
+
+import { MdDragHandle } from 'react-icons/md'
+
+const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) {
+  const xValue = api.value(0)
+  const highPoint = api.coord([xValue, api.value(3)])
+  const lowPoint = api.coord([xValue, api.value(2)])
+  const color = api.visual('color')
+
+  const lineStyle = {
+    stroke: color,
+    lineWidth: 2
+  }
+
+  return {
+    type: 'group',
+    children: [
+      {
+        type: 'line',
+        shape: {
+          x1: highPoint[0],
+          y1: highPoint[1],
+          x2: lowPoint[0],
+          y2: lowPoint[1]
+        },
+        style: lineStyle
+      },
+      {
+        type: 'line',
+        shape: {
+          x1: highPoint[0] - 5,
+          y1: highPoint[1],
+          x2: highPoint[0] + 5,
+          y2: highPoint[1]
+        },
+        style: lineStyle
+      },
+      {
+        type: 'line',
+        shape: {
+          x1: lowPoint[0] - 5,
+          y1: lowPoint[1],
+          x2: lowPoint[0] + 5,
+          y2: lowPoint[1]
+        },
+        style: lineStyle
+      }
+    ]
+  }
+}
+
+export function Chart ({ chart, tables, canQuery, className, onContextMenu, width, height, onError }: { chart: ChartConfig, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
+  const chartContainer = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<echarts.EChartsType>(undefined)
+  const isAnimating = useRef(true)
+
+  const [waiting, setWaiting] = useState(true)
+  const [rows, setRows] = useState<any[]>([])
+
+  const resize = useCallback(() => {
+    function _resize (): void {
+      requestAnimationFrame(() => chartRef.current?.resize())
+
+      chartRef.current?.off('finished', _resize)
+    }
+
+    if (isAnimating.current) chartRef.current?.on('finished', _resize)
+    else _resize()
+  }, [])
+
+  useEffect(() => {
+    const aborter = new AbortController()
+
+    const widget = chartContainer.current
+      ?.closest('.dashup-widget')
+
+    widget
+      ?.addEventListener('transitionend', (e) => e.target === widget && setWaiting(false), { once: true, passive: true, signal: aborter.signal })
+
+    return () => aborter.abort()
+  }, [])
+
+  useEffect(() => {
+    if (waiting) return
+
+    const theme = {
+      backgroundColor: 'var(--color-base-200)',
+      textStyle: {
+        color: 'var(--color-base-content)'
+      },
+      title: {
+        textStyle: {
+          color: 'var(--color-base-content)'
+        },
+        subtextStyle: {
+          color: 'var(--color-base-content)'
+        }
+      },
+      legend: {
+        textStyle: {
+          color: 'var(--color-base-content)'
+        }
+      },
+      tooltip: {
+        axisPointer: {
+          type: 'line',
+          lineStyle: {
+            color: 'var(--color-neutral)',
+            type: 'dashed'
+          },
+          crossStyle: {
+            color: 'var(--color-neutral)'
+          },
+          shadowStyle: {
+            color: 'var(--color-neutral)'
+          }
+        },
+        backgroundColor: 'var(--color-base-200)',
+        borderColor: 'var(--color-neutral)',
+        textStyle: {
+          color: 'var(--color-base-content)'
+        }
+      },
+      categoryAxis: {
+        axisLine: {
+          lineStyle: {
+            color: 'var(--color-base-content)'
+          }
+        },
+        axisLabel: {
+          color: 'var(--color-base-content)'
+        },
+        splitLine: {
+          lineStyle: {
+            color: 'var(--color-base-300)'
+          }
+        }
+      },
+      valueAxis: {
+        axisLine: {
+          lineStyle: {
+            color: 'var(--color-base-content)'
+          }
+        },
+        axisLabel: {
+          color: 'var(--color-base-content)'
+        },
+        splitLine: {
+          lineStyle: {
+            color: 'var(--color-base-300)'
+          }
+        }
+      },
+      pie: {
+        label: {
+          color: 'var(--color-base-content)'
+        }
+      }
+    }
+
+    const aborter = new AbortController()
+    chartRef.current = echarts.init(chartContainer.current, theme, { renderer: 'svg' })
+    chartRef.current.group = 'dashboard'
+    echarts.connect('dashboard')
+
+    const widget = chartContainer.current?.closest('.dashup-widget')
+    widget
+      ?.addEventListener(
+        'transitionend',
+        resize,
+        { passive: true, signal: aborter.signal }
+      )
+
+    function onFinished (): void {
+      isAnimating.current = false
+    }
+
+    function onTipShow (): void {
+      widget?.classList.add('!overflow-visible')
+    }
+    function onTipHide (): void {
+      widget?.classList.remove('!overflow-visible')
+    }
+
+    chartRef.current.on('finished', onFinished)
+    chartRef.current.on('showTip', onTipShow)
+    chartRef.current.on('hideTip', onTipHide)
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'cross' } } })
+    }, { signal: aborter.signal, passive: true })
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'line' } } })
+    }, { signal: aborter.signal, passive: true })
+
+    return () => {
+      aborter.abort()
+      chartRef.current?.off('finished', onFinished)
+      chartRef.current?.off('showTip', onTipShow)
+      chartRef.current?.off('hideTip', onTipHide)
+      chartRef.current?.dispose()
+    }
+  }, [waiting])
+
+  useEffect(() => {
+    const aborter = new AbortController()
+
+    if (!chart.table || !canQuery) {
+      setRows([])
+      return
+    }
+
+    void queryRows(chart as typeof chart & { table: string })
+      .then((r) => {
+        if (aborter.signal.aborted) return
+
+        if (typeof r === 'string') {
+          setRows([])
+          onError?.(new Error(r))
+        } else if (r === null) {
+          setRows([])
+          onError?.(new Error('Failed to fetch data'))
+        } else {
+          setRows(r)
+          onError?.(undefined)
+        }
+      })
+
+    return () => aborter.abort()
+  }, [canQuery, chart, (+chart - +chart.pos)])
+
+  useEffect(() => {
+    if (waiting) return
+
+    isAnimating.current = true
+    chartRef.current?.resize()
+
+    let isTimeXAxis
+    if (tables && chart.table && 'x' in chart.method && chart.method.x) {
+      const x = chart.method.x
+
+      const column = tables[chart.table]?.find((c) => c.name === x)
+      isTimeXAxis = column?.data_type.includes('date') || column?.data_type.includes('time')
+    } else isTimeXAxis = !isNaN(+new Date(rows[0]?.x))
+
+    const figuredType = isTimeXAxis
+      ? 'time'
+      : 'category'
+    chartRef.current?.setOption({
+      animation: true,
+      title: {
+        text: chart.title || undefined,
+        subtext: chart.subtitle || undefined,
+        left: 'center'
+      },
+      tooltip: {
+        trigger: chart.style === 'pie' ? 'item' : 'axis',
+        formatter: chart.style === 'pie'
+          ? (params: any) => {
+            return `
+              ${params.marker}
+              ${params.name}<br/>
+              <strong>${params.value.toLocaleString()}</strong>
+              (<strong>${params.percent}%</strong>)
+            `
+          }
+          : undefined
+      },
+      legend: {
+        show: true,
+        bottom: 8
+      },
+      grid: {
+        left: '10%',
+        right: '10%',
+        bottom: figuredType === 'time' ? 80 : 40,
+        containLabel: true
+      },
+      xAxis: {
+        type: figuredType,
+        axisLabel: {
+          hideOverlap: true
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'Value'
+      },
+      dataZoom: figuredType === 'time' && chart.style !== 'pie'
+        ? {
+          type: 'slider',
+          xAxisIndex: [0],
+          filterMode: 'filter',
+          bottom: 38,
+          height: '5%',
+          labelFormatter: (v, aV) => new Date(aV).toLocaleDateString(undefined, { dateStyle: 'short' })
+        }
+        : undefined
+    } satisfies echarts.EChartsOption)
+  }, [waiting, rows, tables, chart.table, chart.title, chart.subtitle, chart.method, chart.style])
+
+  useEffect(() => {
+    if (waiting) return
+
+    isAnimating.current = true
+    chartRef.current?.resize()
+
+    chartRef.current?.setOption({
+      xAxis: chart.style === 'pie'
+        ? undefined
+        : {
+          data: rows.map((r) => r.x)
+        },
+      series: [{
+        name: 'Series 1',
+        type: chart.style,
+        data: chart.style === 'pie'
+          ? rows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
+          : rows.map((r) => ({ value: [r.x, parseFloat(r.y)] }))
+      } satisfies echarts.SeriesOption]
+    })
+  }, [waiting, chart.style, rows])
+
+  useEffect(() => {
+    if (waiting) return
+
+    requestAnimationFrame(resize)
+  }, [width, height])
+
+  return (
+    <>
+      <div className='transition-opacity absolute inset-x-0 flex justify-center bg-base-200 handle cursor-grab opacity-0 z-10 [.dashup-widget:hover_&]:opacity-100 [.dashup-widget[data-editing]_&]:hidden'>
+        <MdDragHandle />
+      </div>
+
+      <div className={twMerge('flex h-full select-none', className)} onContextMenu={onContextMenu} onDoubleClick={(e) => e.stopPropagation()}>
+        <div className='w-0 grow flex flex-col'>
+          <div className='h-0 grow' ref={chartContainer} />
+        </div>
+      </div>
+
+      <div className={twMerge('absolute inset-0 flex justify-center items-center text-center text-lg font-bold text-base-content/50 pointer-events-none', chart.table && 'hidden')}>Right click on me to edit my properties!</div>
+    </>
+  )
+}

@@ -1,14 +1,14 @@
 import { useCallback, useState } from 'react'
-
 import type { renderRoute } from '../index'
 import { twMerge } from 'tailwind-merge'
 import { useObject } from 'react-exo-hooks'
 
 import { Badge, Button, Form, Input, Modal, Select, Table, Toggle, Tooltip } from 'react-daisyui'
 
+import type { Config } from '../../lib/config'
+
 import logo from '../../assets/logo.png'
 import { MdAdd, MdBuild, MdInfo } from 'react-icons/md'
-import type { Config } from '../../lib/config'
 import pkg from '../../../package.json' with { type: 'json' }
 
 function envToBadge (env: Config['connections'][number]['environment']): React.ReactElement {
