@@ -220,7 +220,7 @@ const binds = {
     if (chart.limit) query.limit(chart.limit)
 
     switch (chart.method.type) {
-      case 'column':
+      case 'value':
         if (chart.method.x && chart.method.y) {
           query.select({
             x: chart.method.x,
@@ -243,9 +243,37 @@ const binds = {
           query
             .select({
               x: chart.method.x,
-              y: activeConnection.raw('COUNT(DISTINCT ??)', chart.method.y)
+              y: activeConnection.countDistinct(chart.method.y)
             })
             .groupBy(chart.method.x)
+        }
+        break
+      case 'aggregate_avg':
+        if (chart.method.x && chart.method.y) {
+          query
+            .select({
+              x: chart.method.x,
+              y: activeConnection.avg(chart.method.y)
+            })
+            .groupBy(chart.method.x)
+
+          switch (chart.method.bars) {
+            case 'stddev':
+              query
+                .select({
+                  lowBar: activeConnection.raw('? - STDDEV(??)', [activeConnection.avg(chart.method.y), chart.method.y]),
+                  highBar: activeConnection.raw('? + STDDEV(??)', [activeConnection.avg(chart.method.y), chart.method.y])
+                })
+              break
+            case 'minmax':
+              query
+                .select({
+                  lowBar: activeConnection.min(chart.method.y),
+                  highBar: activeConnection.max(chart.method.y)
+                })
+              break
+            case null: break
+          }
         }
         break
       case 'aggregate_sum':

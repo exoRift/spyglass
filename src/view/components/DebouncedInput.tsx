@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Input, Textarea } from 'react-daisyui'
 
-export function DebouncedInput<C extends 'input' | 'textarea' = 'input'> ({
+export function DebouncedInput<C extends 'input' | 'textarea' | React.ComponentType<{ value: string, onChange: (e: string | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void }> = 'input'> ({
   Comp = 'input' as C,
   delay = 200,
   onDebouncedChange,
@@ -14,15 +14,15 @@ export function DebouncedInput<C extends 'input' | 'textarea' = 'input'> ({
   value?: string
   delay?: number
   onDebouncedChange?: (v: string) => void
-} & React.ComponentProps<C>): React.ReactNode {
+} & Omit<React.ComponentProps<C>, 'value'>): React.ReactNode {
   const touched = useRef(false)
   const [rawValue, setRawValue] = useState(value)
 
-  const interceptedOnChange = useCallback((e: React.ChangeEvent<HTMLElementTagNameMap[C]>) => {
+  const interceptedOnChange = useCallback((e: string | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onChange?.(e as any)
-    if (!e.defaultPrevented) {
+    if (typeof e === 'string' || !e.defaultPrevented) {
       touched.current = true
-      setRawValue(e.currentTarget.value)
+      setRawValue(typeof e === 'string' ? e : e.currentTarget.value)
     }
   }, [onChange])
 
@@ -34,9 +34,12 @@ export function DebouncedInput<C extends 'input' | 'textarea' = 'input'> ({
     return () => clearTimeout(timeout)
   }, [rawValue])
 
-  const DaisyComp = Comp === 'input'
-    ? Input
-    : Textarea
+  let DaisyComp
+  switch (Comp) {
+    case 'input': DaisyComp = Input; break
+    case 'textarea': DaisyComp = Textarea; break
+    default: DaisyComp = Comp; break
+  }
 
-  return <DaisyComp value={rawValue} onChange={interceptedOnChange as any} {...props as any} />
+  return <DaisyComp value={rawValue as any} onChange={interceptedOnChange} {...props} />
 }

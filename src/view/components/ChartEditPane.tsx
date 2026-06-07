@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { Fragment, useCallback, useMemo } from 'react'
 import { usePromise } from 'react-exo-hooks'
 import { createPortal } from 'react-dom'
 
@@ -7,6 +7,8 @@ import type { Chart as ChartConfig } from '../../lib/config'
 import { Button, Divider, Dropdown, Input, Join, Modal, Select } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
 import { Multiselect } from '../components/Multiselect'
+import CodeMirror from '@uiw/react-codemirror'
+import { javascript } from '@codemirror/lang-javascript'
 
 import { MdDelete, MdHelp, MdArrowUpward, MdAdd } from 'react-icons/md'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
@@ -56,7 +58,7 @@ function MapFunctionHelpButton (): React.ReactNode {
               </p>
               <p>
                 A column can be accessed with <code>rows[INDEX].COLUMN_NAME</code>.
-                Be sure to <code>return</code> an array of datapoints <code>&#123; x, y &#125;</code>.
+                Be sure to <code>return</code> an array of datapoints <code>&#123; x: any, y: number, lowBar?: number, highBar?: number &#125;</code>.
                 If <code>x</code> can be interpreted as a date from a string, it will be. <code>y</code> should be a number.
               </p>
               <p>
@@ -102,9 +104,10 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       const val = value as ChartConfig['method']['type']
       switch (val) {
         case 'aggregate_sum':
-        case 'column': editedChart.method = { type: val, x: null, y: null }; break
+        case 'aggregate_count_unique':
+        case 'value': editedChart.method = { type: val, x: null, y: null }; break
         case 'aggregate_count': editedChart.method = { type: val, x: null }; break
-        case 'aggregate_count_unique': editedChart.method = { type: val, x: null, y: null }; break
+        case 'aggregate_avg': editedChart.method = { type: val, x: null, y: null, bars: null }; break
         case 'custom': editedChart.method = { type: val, columns: [], fn: '' }; break
       }
     } else {
@@ -250,6 +253,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             <Select.Option value='aggregate_count'>Aggregate by Count</Select.Option>
             <Select.Option value='aggregate_count_unique'>Aggregate by Unique Count</Select.Option>
             <Select.Option value='aggregate_sum'>Aggregate by Sum</Select.Option>
+            <Select.Option value='aggregate_avg'>Aggregate by Average</Select.Option>
             <Select.Option value='custom'>Custom Map Function</Select.Option>
           </Select>
         </div>
@@ -269,9 +273,9 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       <div className='space-y-4 border-y border-base-content/50 rounded-sm py-2'>
         {(() => {
           switch (editedChart.method.type) {
-            case 'column':
+            case 'value':
               return (
-                <>
+                <Fragment key='method'>
                   <div className='flex gap-4 *:grow'>
                     <div className='fieldset w-full'>
                       <label htmlFor='xTitle' className='label'>
@@ -315,11 +319,11 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                       </Select>
                     </div>
                   </div>
-                </>
+                </Fragment>
               )
             case 'aggregate_count':
               return (
-                <>
+                <Fragment key='method'>
                   <div className='flex gap-4 *:grow'>
                     <div className='fieldset w-full'>
                       <label htmlFor='xTitle' className='label'>
@@ -348,11 +352,11 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     </label>
                     <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
                   </div>
-                </>
+                </Fragment>
               )
             case 'aggregate_count_unique':
               return (
-                <>
+                <Fragment key='method'>
                   <div className='flex gap-4 *:grow'>
                     <div className='fieldset w-full'>
                       <label htmlFor='xTitle' className='label'>
@@ -396,11 +400,11 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                       </Select>
                     </div>
                   </div>
-                </>
+                </Fragment>
               )
             case 'aggregate_sum':
               return (
-                <>
+                <Fragment key='method'>
                   <div className='flex gap-4 *:grow'>
                     <div className='fieldset w-full'>
                       <label htmlFor='xTitle' className='label'>
@@ -433,7 +437,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
 
                     <div className='fieldset w-full'>
                       <label htmlFor='yColumn' className='label'>
-                        <span className='label-text'>Y Axis Sum Column</span>
+                        <span className='label-text'>Y Axis Column</span>
                       </label>
                       <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                         <Select.Option value='' disabled>Choose a column</Select.Option>
@@ -444,11 +448,70 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                       </Select>
                     </div>
                   </div>
-                </>
+                </Fragment>
+              )
+            case 'aggregate_avg':
+              return (
+                <Fragment key='method'>
+                  <div className='flex gap-4 *:grow'>
+                    <div className='fieldset w-full'>
+                      <label htmlFor='xTitle' className='label'>
+                        <span className='label-text'>X Axis Title</span>
+                      </label>
+                      <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
+                    </div>
+
+                    <div className='fieldset w-full'>
+                      <label htmlFor='table' className='label'>
+                        <span className='label-text'>X Axis Column</span>
+                      </label>
+                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
+                        <Select.Option value='' disabled>Choose a column</Select.Option>
+
+                        {(usableColumns?.map((c) => (
+                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                        )))}
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className='flex gap-4 *:grow'>
+                    <div className='fieldset w-full'>
+                      <label htmlFor='yTitle' className='label'>
+                        <span className='label-text'>Y Axis Title</span>
+                      </label>
+                      <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
+                    </div>
+
+                    <div className='fieldset w-full'>
+                      <label htmlFor='yColumn' className='label'>
+                        <span className='label-text'>Y Axis Column</span>
+                      </label>
+                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
+                        <Select.Option value='' disabled>Choose a column</Select.Option>
+
+                        {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
+                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                        )))}
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className='fieldset w-full'>
+                    <label htmlFor='bars' className='label'>
+                      <span className='label-text'>Error Bars</span>
+                    </label>
+                    <Select defaultValue={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
+                      <Select.Option value=''>None</Select.Option>
+                      <Select.Option value='stddev'>Standard Deviation</Select.Option>
+                      <Select.Option value='minmax'>Minimum / Maximum</Select.Option>
+                    </Select>
+                  </div>
+                </Fragment>
               )
             case 'custom':
               return (
-                <>
+                <Fragment key='method'>
                   <div className='fieldset'>
                     <label htmlFor='customColumns' className='label'>
                       <span className='label-text'>Columns to Query</span>
@@ -465,7 +528,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                       <span className='label-text'>Map Function</span>
                       <MapFunctionHelpButton />
                     </label>
-                    <DebouncedInput delay={500} className='font-mono' Comp='textarea' id='mapFn' name='mapFn' placeholder='JS Code...' defaultValue={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
+                    <DebouncedInput theme={matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'} extensions={[javascript()]} delay={500} className='font-mono' Comp={CodeMirror} id='mapFn' placeholder='JS Code...' value={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
                     {!isForgeInstalled && (
                       <Button size='xs' color='neutral' onClick={() => (document.getElementById('forge-modal') as HTMLDialogElement).showModal()}>Install DataForge (optional)</Button>
                     )}
@@ -475,7 +538,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                       </label>
                     )}
                   </div>
-                </>
+                </Fragment>
               )
           }
         })()}

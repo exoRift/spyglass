@@ -21,7 +21,7 @@ const Chart = type({
   yTitle: 'string',
   method: type.or(
     type({
-      type: '"column" | "aggregate_sum"',
+      type: '"value" | "aggregate_count_unique" | "aggregate_sum"',
       x: 'string | null',
       y: 'string | null'
     }),
@@ -30,9 +30,10 @@ const Chart = type({
       x: 'string | null'
     }),
     type({
-      type: '"aggregate_count_unique"',
+      type: '"aggregate_avg"',
       x: 'string | null',
-      y: 'string | null'
+      y: 'string | null',
+      bars: '"stddev" | "minmax" | null'
     }),
     type({
       type: '"custom"',

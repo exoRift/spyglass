@@ -23,7 +23,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
   } = Modal.useDialog()
 
   const [dashKey, setDashKey] = useState(0)
-  const [isUnsaved, setIsUnsaved] = useState(false)
+  const [isUnsaved, setIsUnsaved] = useState<boolean | null>(null)
   const [editing, setEditing] = useState<number | null>(null)
   const [tables, setTables] = useState<Partial<Record<string, Column[]>> | null>({})
   const errors = useMap<number, Error | undefined>()
@@ -80,7 +80,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       xTitle: 'untitled x',
       yTitle: 'untitled y',
       method: {
-        type: 'column',
+        type: 'value',
         x: null,
         y: null
       },
@@ -119,7 +119,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
         _config = cfg
         setConfig(_config)
       })
-      .then(() => setIsUnsaved(false))
+      .then(() => setIsUnsaved(null))
       .then(() => setDashKey((prior) => prior + 1))
   }, [setConfig])
 
@@ -148,7 +148,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
     }
   }, [connection, connIndex, password])
 
-  useEffect(() => setIsUnsaved(true), [+connection])
+  useEffect(() => setIsUnsaved((prior) => prior !== null), [connection, +connection])
 
   const editedChart = editing === null ? null : connection.charts[editing]!
 
@@ -178,7 +178,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
         </Button>
       </header>
 
-      <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal]' onDoubleClick={createWidget}>
+      <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&_.dashup-widget:hover]:!z-30' onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
           <Dash key={dashKey} widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='!transition-none' onChange={updateWidgets} />
           <div className={twMerge('transition fixed min-h-screen inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />

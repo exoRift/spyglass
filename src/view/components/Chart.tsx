@@ -10,8 +10,10 @@ import { MdDragHandle } from 'react-icons/md'
 
 const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) {
   const xValue = api.value(0)
-  const highPoint = api.coord([xValue, api.value(3)])
   const lowPoint = api.coord([xValue, api.value(2)])
+  const highPoint = api.coord([xValue, api.value(3)])
+  // const width = (api.size!([0, 1]) as [number, number])[0] * 0.4
+  const width = 5
   const color = api.visual('color')
 
   const lineStyle = {
@@ -35,9 +37,9 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
       {
         type: 'line',
         shape: {
-          x1: highPoint[0] - 5,
+          x1: highPoint[0]! - width,
           y1: highPoint[1],
-          x2: highPoint[0] + 5,
+          x2: highPoint[0]! + width,
           y2: highPoint[1]
         },
         style: lineStyle
@@ -45,9 +47,9 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
       {
         type: 'line',
         shape: {
-          x1: lowPoint[0] - 5,
+          x1: lowPoint[0]! - width,
           y1: lowPoint[1],
-          x2: lowPoint[0] + 5,
+          x2: lowPoint[0]! + width,
           y2: lowPoint[1]
         },
         style: lineStyle
@@ -267,11 +269,23 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
             return `
               ${params.marker}
               ${params.name}<br/>
-              <strong>${params.value.toLocaleString()}</strong>
+              <strong>${params.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
               (<strong>${params.percent}%</strong>)
             `
           }
-          : undefined
+          : (params: any) => {
+            return `
+              ${params[0].axisType.includes('time') ? new Date(params[0].axisValue).toLocaleString() : params[0].axisValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              <br/>
+              ${params
+                .map((p: any) => `${p.marker} ${p.seriesName} <strong style="marginLeft:'auto';">${p.seriesType === 'custom'
+                  ? p.seriesName === 'Std. Dev.'
+                    ? (p.value[1] - p.value[2]).toLocaleString(undefined, { maximumFractionDigits: 2 })
+                    : `${p.value[2].toLocaleString(undefined, { maximumFractionDigits: 2 })} / ${p.value[3].toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                  : p.value[1].toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>`)
+                .join('<br/>')}
+            `
+          }
       },
       legend: {
         show: true,
@@ -312,21 +326,45 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
     isAnimating.current = true
     chartRef.current?.resize()
 
+    const series: echarts.SeriesOption[] = [{
+      name: 'Series 1',
+      type: chart.style,
+      data: chart.style === 'pie'
+        ? rows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
+        : rows.map((r) => ({ value: [r.x, parseFloat(r.y)] }))
+    }]
+
+    if ((chart.method.type === 'aggregate_avg' && chart.method.bars) || (chart.method.type === 'custom' && rows[0] && 'lowBar' in rows[0] && 'highBar' in rows[0])) {
+      series.push({
+        type: 'custom',
+        name: chart.method.type === 'aggregate_avg'
+          ? chart.method.bars === 'stddev'
+            ? 'Std. Dev.'
+            : 'Min / Max'
+          : 'Error',
+        renderItem: errorBoundRender,
+        color: 'var(--color-error)',
+        data: rows.map((r) => ({ value: [r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)] })),
+        itemStyle: {
+          borderWidth: 1.5
+        },
+        encode: { x: 0, y: [2, 3] },
+        universalTransition: true,
+        zlevel: 1
+      })
+    }
+
+    const oldLength = (chartRef.current?.getOption() as any)?.series?.length ?? 0
+
     chartRef.current?.setOption({
       xAxis: chart.style === 'pie'
         ? undefined
         : {
           data: rows.map((r) => r.x)
         },
-      series: [{
-        name: 'Series 1',
-        type: chart.style,
-        data: chart.style === 'pie'
-          ? rows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
-          : rows.map((r) => ({ value: [r.x, parseFloat(r.y)] }))
-      } satisfies echarts.SeriesOption]
-    })
-  }, [waiting, chart.style, rows])
+      series
+    }, { replaceMerge: oldLength > series.length ? 'series' : undefined })
+  }, [waiting, chart.style, chart.method, rows])
 
   useEffect(() => {
     if (waiting) return
