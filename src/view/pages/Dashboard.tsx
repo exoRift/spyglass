@@ -13,7 +13,7 @@ import { ChartEditPane } from '../components/ChartEditPane'
 import { MdArrowLeft, MdCable, MdDelete, MdSave, MdWarning } from 'react-icons/md'
 import 'dashup/style.css'
 
-export default function Dashboard ({ navigate, connection: connIndex }: { navigate: typeof renderRoute, connection: number }): React.ReactNode {
+export default function Dashboard ({ navigate, connIndex }: { navigate: typeof renderRoute, connIndex: number }): React.ReactNode {
   const [config, setConfig] = useObject(_config)
   const connection = config.connections[connIndex]!
 
@@ -134,7 +134,7 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
       password: pw
     })
       .then((r) => {
-        if (r === null) setPasswordError('Could not connect. Is the password incorrect?')
+        if (typeof r !== 'number') setPasswordError(`Could not connect. Is the password incorrect? (${r})`)
         else setPassword(pw)
       })
   }, [connection])
@@ -154,7 +154,12 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
 
   return (
     <div className='flex flex-col w-screen h-screen'>
-      <Alert className={twMerge('transition fixed left-2 bottom-2 translate-y-4 opacity-0 z-50 pointer-events-none', tables === null && 'opacity-100 translate-y-0 pointer-events-auto')} icon={<MdWarning className='text-warning text-lg' />}>Spyglass cannot connect to the database</Alert>
+      <Alert className={twMerge('transition fixed left-2 bottom-2 translate-y-4 opacity-0 z-50 pointer-events-none', tables === null && 'opacity-100 translate-y-0 pointer-events-auto')} icon={<MdWarning className='text-warning text-lg' />}>
+        <div className='flex items-center gap-2'>
+          <span>Spyglass cannot connect to the database.</span>
+          <Button variant='link' size='sm' className='p-0' onClick={() => { void setActiveConnection(-1); navigate('Connections', { editing: connIndex }) }}>Edit Connection</Button>
+        </div>
+      </Alert>
 
       <header className='flex gap-4 items-center bg-base-300 transition-colors duration-300 p-2 px-4'>
         <Button

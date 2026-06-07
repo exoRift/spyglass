@@ -121,6 +121,10 @@ const binds = {
     Object.assign(config, parsed)
     return await Bun.write(CONFIG_LOCATION, JSON.stringify(config, null, 2))
       .then(() => null)
+      .catch((err) => {
+        logger.error('FAILED TO SAVE CONFIG!', err)
+        return null
+      })
   },
   async testConnection (client: Connection['client'], options: Connection['details'] & { password: string }): Promise<number | null> {
     const details = {
@@ -137,7 +141,7 @@ const binds = {
     const ts = performance.now()
     return await connection.raw('SELECT current_user')
       .then(() => performance.now() - ts)
-      .catch(() => null)
+      .catch((err) => err.message || err.code || err.toString())
       .finally(() => void connection.destroy())
   },
   async setActiveConnection (index: number, password?: string): Promise<number | null> {

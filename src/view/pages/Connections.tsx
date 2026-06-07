@@ -1,15 +1,39 @@
-import { useCallback, useState } from 'react'
-import type { renderRoute } from '../index'
+import React, { useCallback, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
+
+import { createPortal } from 'react-dom'
 import { useObject } from 'react-exo-hooks'
+import type { renderRoute } from '../index'
 
 import { Badge, Button, Form, Input, Modal, Select, Table, Toggle, Tooltip } from 'react-daisyui'
 
-import type { Config } from '../../lib/config'
+import type { Config, Connection } from '../../lib/config'
 
 import logo from '../../assets/logo.png'
-import { MdAdd, MdBuild, MdInfo } from 'react-icons/md'
+import { MdAdd, MdBuild, MdInfo, MdEdit, MdDelete, MdFileCopy } from 'react-icons/md'
 import pkg from '../../../package.json' with { type: 'json' }
+import { PasswordInput } from '../components/PasswordInput'
+
+const DB_CLIENT_DISPLAYNAME_MAP: Record<Connection['client'], string> = {
+  pg: 'Postgres',
+  mysql: 'MySQL / MariaDB',
+  oracledb: 'Oracle',
+  sqlite3: 'SQLite',
+  tedious: 'MSSQL'
+}
+
+function getCopyName (config: Config, name: string): string {
+  let copyName = `Copy of ${name}`
+
+  while (config.connections.some((c) => c.name === copyName)) {
+    const match = copyName.match(/ \((\d+?)\)$/)
+    const number = match?.[1] ?? '0'
+
+    copyName = copyName.slice(0, match?.index) + ` (${parseInt(number) + 1})`
+  }
+
+  return copyName
+}
 
 function envToBadge (env: Config['connections'][number]['environment']): React.ReactElement {
   switch (env) {
@@ -21,10 +45,136 @@ function envToBadge (env: Config['connections'][number]['environment']): React.R
   }
 }
 
+function ConnectionTestResultModal ({ testResult, onClose, ...props }: React.ComponentProps<typeof Modal.Legacy> & { testResult: null | number | string, onClose: () => void }): React.ReactNode {
+  return (
+    <Modal.Legacy {...props}>
+      <Modal.Header>
+        <h1 className={twMerge('font-bold', typeof testResult === 'number' ? 'text-success' : 'text-error')}>{typeof testResult === 'number' ? 'Connection succeeded' : 'Connection failed'}</h1>
+      </Modal.Header>
+
+      <Modal.Body>
+        {testResult === null
+          ? <p className='text-error/80 italic'>Failed to establish connection</p>
+          : typeof testResult === 'string'
+            ? <p className='text-error/80 italic'>Failed to establish connection ({testResult})</p>
+            : <p className='italic'>{`Connection established in ${Math.round(testResult * 100) / 100}ms`}</p>}
+      </Modal.Body>
+
+      <Modal.Actions>
+        <Button type='button' color='neutral' onClick={onClose}>Ok</Button>
+      </Modal.Actions>
+    </Modal.Legacy>
+  )
+}
+
+function ConnectionForm ({ className, defaultValues, ...props }: React.ComponentProps<typeof Form> & { defaultValues?: Connection }): React.ReactNode {
+  const defaultSavePassword = typeof defaultValues === 'undefined'
+    ? true
+    : typeof defaultValues.details.password === 'string'
+
+  return (
+    <Form className={twMerge('space-y-4', className)} {...props}>
+      <div className='flex gap-4 *:grow'>
+        <div className='fieldset w-full'>
+          <label htmlFor='name' className='label'>
+            <span className='label-text'>Connection Name</span>
+          </label>
+          <Input className='w-full' id='name' name='name' defaultValue={defaultValues?.name} required onChange={(e) => e.currentTarget.setCustomValidity('')} />
+          <label htmlFor='name' className='label'>
+            <span className='label-text'>This is unrelated to the connection URL</span>
+          </label>
+        </div>
+
+        <div className='fieldset w-max'>
+          <label htmlFor='environment' className='label'>
+            <span className='label-text'>Environment</span>
+          </label>
+          <Select className='w-full' id='environment' name='environment' defaultValue={defaultValues?.environment} required>
+            <Select.Option value='local'>Local</Select.Option>
+            <Select.Option value='testing'>Testing</Select.Option>
+            <Select.Option value='development'>Development</Select.Option>
+            <Select.Option value='staging'>Staging</Select.Option>
+            <Select.Option value='production'>Production</Select.Option>
+          </Select>
+          <label htmlFor='environment' className='label'>
+            <span className='label-text'>This is unrelated to the connection URL</span>
+          </label>
+        </div>
+      </div>
+
+      <div className='flex gap-4 *:grow'>
+        <div className='fieldset w-1/3'>
+          <label htmlFor='username' className='label'>
+            <span className='label-text'>Username</span>
+          </label>
+          <Input id='username' name='username' defaultValue={defaultValues?.details.username} required />
+        </div>
+
+        <div className='fieldset w-2/3'>
+          <label htmlFor='password' className='label'>
+            <span className='label-text'>Password</span>
+          </label>
+          <PasswordInput id='password' name='password' placeholder='Optional...' defaultValue={defaultValues?.details.password} />
+        </div>
+      </div>
+
+      <div className='flex gap-4 *:grow'>
+        <div className='fieldset w-full'>
+          <label htmlFor='host' className='label'>
+            <span className='label-text'>Host</span>
+          </label>
+          <Input className='w-full' id='host' name='host' defaultValue={defaultValues?.details.host} required />
+        </div>
+
+        <div className='fieldset w-1/2'>
+          <label htmlFor='port' className='label'>
+            <span className='label-text'>Port</span>
+          </label>
+          <Input className='w-full' id='port' name='port' pattern='\d+' placeholder='Optional...' defaultValue={defaultValues?.details.port} />
+        </div>
+
+        <div className='fieldset w-full'>
+          <label htmlFor='database' className='label'>
+            <span className='label-text'>Database</span>
+          </label>
+          <Input className='w-full' id='database' name='database' defaultValue={defaultValues?.details.database} required />
+        </div>
+      </div>
+
+      <div className='flex gap-4 justify-between'>
+        <div className='fieldset w-max'>
+          <label htmlFor='client' className='label'>
+            <span className='label-text'>SQL Client (driver)</span>
+          </label>
+          <Select className='w-full' id='client' name='client' defaultValue={defaultValues?.client} required>
+            <Select.Option value='pg'>Postgres (pg)</Select.Option>
+            <Select.Option value='sqlite3'>SQLite (sqlite3)</Select.Option>
+            <Select.Option value='mysql'>MySQL / MariaDB (mysql)</Select.Option>
+            <Select.Option value='oracledb'>Oracle (oracledb)</Select.Option>
+            <Select.Option value='tedious'>MSSQL (tedious)</Select.Option>
+          </Select>
+        </div>
+
+        <div className='flex flex-col'>
+          <label htmlFor='savepass' className='opacity-0'>Save Password</label>
+          <div className='grow flex items-center'>
+            <Form.Label title='Save Password' className='text-sm'>
+              <Tooltip message='If not saved, password will be prompted on connect' position='left'>
+                <MdInfo className='cursor-help' />
+              </Tooltip>
+              <Toggle defaultChecked={defaultSavePassword} id='savepass' name='savepass' color='secondary' />
+            </Form.Label>
+          </div>
+        </div>
+      </div>
+    </Form>
+  )
+}
+
 function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNode {
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showTestResults, setShowTestResults] = useState(false)
-  const [testResult, setTestResult] = useState<number | null>(null)
+  const [showTestResultsModal, setShowTestResultsModal] = useState(false)
+  const [testResult, setTestResult] = useState<number | null | string>(null)
 
   const onSubmit = useCallback((e: React.SubmitEvent<HTMLFormElement>) => {
     const form = e.currentTarget
@@ -48,7 +198,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
       case 'test':
         void testConnection(obj.client, obj)
           .then(setTestResult)
-          .finally(() => setShowTestResults(true))
+          .finally(() => setShowTestResultsModal(true))
 
         break
       case 'submit':
@@ -82,134 +232,148 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
         </Modal.Header>
 
         <Modal.Body>
-          <Form id='create_form' className='space-y-4' onSubmit={onSubmit}>
-            <div className='flex gap-4 *:grow'>
-              <div className='fieldset w-full'>
-                <label htmlFor='name' className='label'>
-                  <span className='label-text'>Connection Name</span>
-                </label>
-                <Input className='w-full' id='name' name='name' required onChange={(e) => e.currentTarget.setCustomValidity('')} />
-                <label htmlFor='name' className='label'>
-                  <span className='label-text'>This is unrelated to the connection URL</span>
-                </label>
-              </div>
-
-              <div className='fieldset w-max'>
-                <label htmlFor='environment' className='label'>
-                  <span className='label-text'>Environment</span>
-                </label>
-                <Select className='w-full' id='environment' name='environment' required>
-                  <Select.Option value='local'>Local</Select.Option>
-                  <Select.Option value='testing'>Testing</Select.Option>
-                  <Select.Option value='development'>Development</Select.Option>
-                  <Select.Option value='staging'>Staging</Select.Option>
-                  <Select.Option value='production'>Production</Select.Option>
-                </Select>
-                <label htmlFor='environment' className='label'>
-                  <span className='label-text'>This is unrelated to the connection URL</span>
-                </label>
-              </div>
-            </div>
-
-            <div className='flex gap-4 *:grow'>
-              <div className='fieldset w-1/3'>
-                <label htmlFor='username' className='label'>
-                  <span className='label-text'>Username</span>
-                </label>
-                <Input id='username' name='username' required />
-              </div>
-
-              <div className='fieldset w-2/3'>
-                <label htmlFor='password' className='label'>
-                  <span className='label-text'>Password</span>
-                </label>
-                <Input id='password' name='password' type='password' placeholder='Optional...' />
-              </div>
-            </div>
-
-            <div className='flex gap-4 *:grow'>
-              <div className='fieldset w-full'>
-                <label htmlFor='host' className='label'>
-                  <span className='label-text'>Host</span>
-                </label>
-                <Input className='w-full' id='host' name='host' required />
-              </div>
-
-              <div className='fieldset w-1/2'>
-                <label htmlFor='port' className='label'>
-                  <span className='label-text'>Port</span>
-                </label>
-                <Input className='w-full' id='port' name='port' pattern='\d+' placeholder='Optional...' />
-              </div>
-
-              <div className='fieldset w-full'>
-                <label htmlFor='database' className='label'>
-                  <span className='label-text'>Database</span>
-                </label>
-                <Input className='w-full' id='database' name='database' required />
-              </div>
-            </div>
-
-            <div className='flex gap-4 justify-between'>
-              <div className='fieldset w-max'>
-                <label htmlFor='client' className='label'>
-                  <span className='label-text'>SQL Client</span>
-                </label>
-                <Select className='w-full' id='client' name='client' required>
-                  <Select.Option value='pg'>pg</Select.Option>
-                  <Select.Option value='sqlite3'>sqlite3</Select.Option>
-                  <Select.Option value='mysql'>mysql (MariaDB-compatible)</Select.Option>
-                  <Select.Option value='oracledb'>oracledb</Select.Option>
-                  <Select.Option value='tedious'>tedious (MSSQL)</Select.Option>
-                </Select>
-              </div>
-
-              <div className='flex flex-col'>
-                <label htmlFor='savepass' className='opacity-0'>Save Password</label>
-                <div className='grow flex items-center'>
-                  <Form.Label title='Save Password' className='text-sm'>
-                    <Tooltip message='If not saved, password will be prompted on connect' position='left'>
-                      <MdInfo className='cursor-help' />
-                    </Tooltip>
-                    <Toggle defaultChecked id='savepass' name='savepass' color='secondary' />
-                  </Form.Label>
-                </div>
-              </div>
-            </div>
-          </Form>
+          <ConnectionForm id='create_connection_form' onSubmit={onSubmit} />
         </Modal.Body>
 
         <Modal.Actions>
-          <Button id='test' className='mr-auto' color='neutral' type='submit' form='create_form'>
+          <Button id='test' className='mr-auto' color='neutral' type='submit' form='create_connection_form'>
             <MdBuild className='text-xl' />
             Test Connection
           </Button>
 
           <Button variant='outline' onClick={() => setShowCreateModal(false)} type='button'>Cancel</Button>
-          <Button id='submit' color='success' type='submit' form='create_form'>Save</Button>
+          <Button id='submit' color='success' type='submit' form='create_connection_form'>Save</Button>
         </Modal.Actions>
       </Modal.Legacy>
 
-      <Modal.Legacy open={showTestResults}>
-        <Modal.Header>
-          <h1 className={twMerge('font-bold', testResult === null ? 'text-error' : 'text-success')}>{testResult === null ? 'Connection failed' : 'Connection succeeded'}</h1>
-        </Modal.Header>
-
-        <Modal.Body>
-          {testResult === null
-            ? <p className='text-error/80 italic'>Failed to establish connection</p>
-            : <p className='italic'>{`Connection established in ${Math.round(testResult * 100) / 100}ms`}</p>}
-        </Modal.Body>
-
-        <Modal.Actions>
-          <Button type='button' color='neutral' onClick={() => setShowTestResults(false)}>Ok</Button>
-        </Modal.Actions>
-      </Modal.Legacy>
+      <ConnectionTestResultModal testResult={testResult} open={showTestResultsModal} onClose={() => setShowTestResultsModal(false)} />
     </>
   )
 }
 
-export default function Connections ({ navigate }: { navigate: typeof renderRoute }): React.ReactNode {
+function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Config, connIndex: number, startEditing?: boolean }): React.ReactNode {
+  const connection = config.connections[connIndex]!
+
+  const [showEditModal, setShowEditModal] = useState(startEditing ?? false)
+  const [showTestResultsModal, setShowTestResultsModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [testResult, setTestResult] = useState<number | null | string>(null)
+
+  const onSubmit = useCallback((e: React.SubmitEvent<HTMLFormElement>) => {
+    const form = e.currentTarget
+    e.preventDefault()
+    const mode = e.nativeEvent.submitter!.id
+    const data = new FormData(form)
+
+    const obj = Object.fromEntries(data.entries()) as any
+    if (!obj.savepass) delete obj.password
+    obj.charts = []
+
+    const nameInput = document.getElementById('name') as HTMLInputElement
+    if (config.connections.some((c) => c !== connection && c.name === obj.name)) {
+      nameInput.setCustomValidity('Name already taken by another connection')
+      nameInput.reportValidity()
+
+      return
+    }
+
+    switch (mode) {
+      case 'test':
+        void testConnection(obj.client, obj)
+          .then(setTestResult)
+          .finally(() => setShowTestResultsModal(true))
+
+        break
+      case 'submit':
+        Object.assign(connection, obj)
+
+        void saveConfig(config)
+          .then((errs) => {
+            if (errs !== null) {
+              void logError(errs)
+              return
+            }
+
+            setShowEditModal(false)
+            form.reset()
+          })
+
+        break
+    }
+  }, [config, connection])
+
+  const formID = `edit_connection_form_${connIndex}`
+
+  return (
+    <>
+      <Button color='secondary' onClick={(e) => { e.stopPropagation(); setShowEditModal(true) }} className='[:has(>&)]:w-0'>
+        <MdEdit className='text-lg' />
+        Edit
+      </Button>
+
+      {createPortal((
+        <>
+          <Modal.Legacy open={showEditModal}>
+            <Modal.Header className='flex gap-2'>
+              <h1 className='mr-auto'>
+                <span>Edit Connection: </span>
+                <strong>{connection.name}</strong>
+              </h1>
+
+              <Button size='sm' color='neutral' onClick={() => { config.connections.push({ ...connection, name: getCopyName(config, connection.name) }); setShowEditModal(false); void saveConfig(config) }}>
+                <MdFileCopy className='text-base' />
+                Duplicate
+              </Button>
+
+              <Button size='sm' color='error' onClick={() => setShowDeleteModal(true)}>
+                <MdDelete className='text-base' />
+                Delete
+              </Button>
+            </Modal.Header>
+
+            <Modal.Body>
+              <ConnectionForm id={formID} defaultValues={connection} onSubmit={onSubmit} />
+            </Modal.Body>
+
+            <Modal.Actions>
+              <Button id='test' className='mr-auto' color='neutral' type='submit' form={formID}>
+                <MdBuild className='text-lg' />
+                Test Connection
+              </Button>
+
+              <Button variant='outline' onClick={() => setShowEditModal(false)} type='button'>Cancel</Button>
+              <Button id='submit' color='success' type='submit' form={formID}>Save</Button>
+            </Modal.Actions>
+          </Modal.Legacy>
+
+          <ConnectionTestResultModal testResult={testResult} open={showTestResultsModal} onClose={() => setShowTestResultsModal(false)} />
+
+          <Modal.Legacy open={showDeleteModal}>
+            <Modal.Header>
+              <h1 className='font-bold'>Delete Connection</h1>
+            </Modal.Header>
+
+            <Modal.Body>
+              <p>
+                <span>Are you sure you want to delete </span>
+                <strong>{connection.name}</strong>
+                <span>?</span>
+              </p>
+            </Modal.Body>
+
+            <Modal.Actions>
+              <Button type='button' color='neutral' onClick={() => setShowDeleteModal(false)}>No</Button>
+              <Button type='button' color='error' onClick={() => { config.connections.splice(connIndex, 1); void saveConfig(config) }}>Yes</Button>
+            </Modal.Actions>
+          </Modal.Legacy>
+        </>
+      ), document.body
+      )}
+    </>
+  )
+}
+
+export default function Connections ({ navigate, editing }: { navigate: typeof renderRoute, editing?: number }): React.ReactNode {
   const [config] = useObject(_config)
 
   return (
@@ -228,27 +392,27 @@ export default function Connections ({ navigate }: { navigate: typeof renderRout
         </div>
       </header>
 
-      <div className='p-8 space-y-4'>
+      <div className='p-8 space-y-4 overflow-auto h-0 grow'>
         <h2 className='text-neutral font-semibold text-xl'>Connections</h2>
 
         <Table>
           <Table.Head>
-            <span>Env</span>
+            <span className='[:has(>&)]:whitespace-nowrap [:has(>&)]:w-[1%]'>Environment</span>
             <span>Name</span>
             <span>User</span>
             <span>Database</span>
             <span>DB Client</span>
-            <span className='[:has(>&)]:w-0 [:has(>&)]:p-0' />
+            <span className='[:has(>&)]:whitespace-nowrap [:has(>&)]:w-[1%] [:has(>&)]:p-0' />
           </Table.Head>
           <Table.Body>
             {config.connections.map((c, i) => (
-              <Table.Row key={c.name} className='transition-colors duration-300 not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connection: i })}>
-                {envToBadge(c.environment)}
-                <span>{c.name}</span>
+              <Table.Row key={c.name} className='transition-colors duration-300 not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connIndex: i })}>
+                <span className='[:has(>&)]:whitespace-nowrap [:has(>&)]:w-[1%]'>{envToBadge(c.environment)}</span>
+                <span className='font-semibold'>{c.name}</span>
                 <span>{c.details.username}</span>
                 <span>{c.details.database}</span>
-                <code>{c.client}</code>
-                <Button color='error' className='[:has(>&)]:w-0 [:has(>&)]:text-end' onClick={(e) => { e.stopPropagation(); config.connections.splice(i, 1) }}>Delete</Button>
+                <span>{DB_CLIENT_DISPLAYNAME_MAP[c.client]}</span>
+                <ConnectionEditButton config={config} connIndex={i} startEditing={editing === i} />
               </Table.Row>
             ))}
           </Table.Body>
