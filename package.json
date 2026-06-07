@@ -18,7 +18,7 @@
     "knex": "^3.1.0",
     "knex-schema-inspector": "^3.1.0",
     "open": "^11.0.0",
-    "react-exo-hooks": "^2.4.0",
+    "react-exo-hooks": "^2.5.1",
     "webview-bun": "github:exoRift/webview-bun#a51742028afd048ec58bc8eb90fa6870bab7810e"
   },
   "devDependencies": {

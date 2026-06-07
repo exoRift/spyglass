@@ -3,6 +3,7 @@ import { twMerge } from 'tailwind-merge'
 import * as echarts from 'echarts'
 import { useMap, useObject, usePromise } from 'react-exo-hooks'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
+import { createPortal } from 'react-dom'
 
 import type { renderRoute } from '../index'
 import type { Chart } from '../../lib/config'
@@ -10,13 +11,12 @@ import type { Chart } from '../../lib/config'
 import { type Layout, type WidgetProps, Dashboard as Dash } from 'dashup'
 import { Alert, Button, Divider, Drawer, Dropdown, Form, Input, Join, Modal, Select, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
+import { Multiselect } from '../components/Multiselect'
 
 import { MdArrowLeft, MdCable, MdDelete, MdDragHandle, MdHelp, MdSave, MdWarning, MdArrowUpward, MdAdd } from 'react-icons/md'
 import 'dashup/style.css'
-import { Multiselect } from '../components/Multiselect'
-import { createPortal } from 'react-dom'
 
-function Chart ({ chart, configSignal, tables, canQuery, className, onContextMenu, width, height, onError }: { chart: Chart, configSignal: number, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
+function Chart ({ chart, tables, canQuery, className, onContextMenu, width, height, onError }: { chart: Chart, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
   const chartContainer = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.EChartsType>(undefined)
   const isAnimating = useRef(true)
@@ -194,7 +194,7 @@ function Chart ({ chart, configSignal, tables, canQuery, className, onContextMen
       })
 
     return () => aborter.abort()
-  }, [canQuery, chart, configSignal])
+  }, [canQuery, chart, (+chart - +chart.pos)])
 
   useEffect(() => {
     if (waiting) return
@@ -235,12 +235,12 @@ function Chart ({ chart, configSignal, tables, canQuery, className, onContextMen
       },
       legend: {
         show: true,
-        top: 'bottom'
+        bottom: 8
       },
       grid: {
         left: '10%',
         right: '10%',
-        bottom: '15%',
+        bottom: figuredType === 'time' ? 80 : 40,
         containLabel: true
       },
       xAxis: {
@@ -258,7 +258,7 @@ function Chart ({ chart, configSignal, tables, canQuery, className, onContextMen
           type: 'slider',
           xAxisIndex: [0],
           filterMode: 'filter',
-          bottom: 30,
+          bottom: 38,
           height: '5%',
           labelFormatter: (v, aV) => new Date(aV).toLocaleDateString(undefined, { dateStyle: 'short' })
         }
@@ -282,7 +282,7 @@ function Chart ({ chart, configSignal, tables, canQuery, className, onContextMen
         name: 'Series 1',
         type: chart.style,
         data: chart.style === 'pie'
-          ? rows.map((r) => ({ name: r.x, value: parseFloat(r.y) }))
+          ? rows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
           : rows.map((r) => ({ value: [r.x, parseFloat(r.y)] }))
       } satisfies echarts.SeriesOption]
     })
@@ -408,7 +408,6 @@ export default function Dashboard ({ navigate, connection: connIndex }: { naviga
         <Chart
           chart={c}
           tables={tables}
-          configSignal={+config}
           canQuery={connected}
           onContextMenu={(e) => {
             e.preventDefault()
