@@ -3,4 +3,6 @@ declare module '*.png' {
   export default contents
 }
 
-declare module 'safer-eval'
+declare module 'open-file-manager-dialog' {
+  export function openFileManagerDialog (dirname?: string, options?: { limit?: number, filter?: string[], terminal?: string }): Promise<{ files: string[], canceled: boolean }>
+}

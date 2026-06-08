@@ -17,6 +17,53 @@
                     {
                       "type": "object",
                       "properties": {
+                        "bars": {
+                          "anyOf": [
+                            {
+                              "const": "minmax"
+                            },
+                            {
+                              "const": "stddev"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "aggregate_avg"
+                        },
+                        "x": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "y": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "bars",
+                        "type",
+                        "x",
+                        "y"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
                         "columns": {
                           "type": "array",
                           "items": {
@@ -41,8 +88,9 @@
                       "properties": {
                         "type": {
                           "enum": [
+                            "aggregate_count_unique",
                             "aggregate_sum",
-                            "column"
+                            "value"
                           ]
                         },
                         "x": {
@@ -92,39 +140,6 @@
                       "required": [
                         "type",
                         "x"
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "const": "aggregate_count_unique"
-                        },
-                        "x": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "y": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "type",
-                        "x",
-                        "y"
                       ]
                     }
                   ]
@@ -256,49 +271,71 @@
               ]
             }
           },
-          "client": {
-            "enum": [
-              "mysql",
-              "oracledb",
-              "pg",
-              "sqlite3",
-              "tedious"
-            ]
-          },
           "details": {
-            "type": "object",
-            "properties": {
-              "database": {
-                "type": "string"
-              },
-              "host": {
-                "type": "string"
-              },
-              "username": {
-                "type": "string"
-              },
-              "password": {
-                "type": "string"
-              },
-              "port": {
-                "anyOf": [
-                  {
-                    "type": "number"
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "client": {
+                    "enum": [
+                      "cockroachdb",
+                      "mariadb",
+                      "mssql",
+                      "mysql",
+                      "oracledb",
+                      "postgres",
+                      "redshift"
+                    ]
                   },
-                  {
-                    "type": "string",
-                    "pattern": "^(?:(?!^-0\\.?0*$)(?:-?(?:(?:0|[1-9]\\d*)(?:\\.\\d+)?)|\\.\\d+?))$"
+                  "database": {
+                    "type": "string"
                   },
-                  {
-                    "const": ""
+                  "host": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^(?:(?!^-0\\.?0*$)(?:-?(?:(?:0|[1-9]\\d*)(?:\\.\\d+)?)|\\.\\d+?))$"
+                      },
+                      {
+                        "const": ""
+                      }
+                    ]
                   }
+                },
+                "required": [
+                  "client",
+                  "database",
+                  "host",
+                  "username"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "client": {
+                    "const": "sqlite"
+                  },
+                  "filename": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "client",
+                  "filename"
                 ]
               }
-            },
-            "required": [
-              "database",
-              "host",
-              "username"
             ]
           },
           "environment": {
@@ -316,7 +353,6 @@
         },
         "required": [
           "charts",
-          "client",
           "details",
           "environment",
           "name"

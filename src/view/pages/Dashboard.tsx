@@ -129,7 +129,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
     const pw = (data.get('password') as string | null) ?? ''
 
     setPasswordError(undefined)
-    void testConnection(connection.client, {
+    void testConnection({
       ...connection.details,
       password: pw
     })
@@ -140,7 +140,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
   }, [connection])
 
   useEffect(() => {
-    if (connection.details.password !== undefined || password !== undefined) {
+    if (connection.details.client === 'sqlite' || connection.details.password !== undefined || password !== undefined) {
       void setActiveConnection(connIndex, password)
         .then(getTables)
         .then(setTables)
@@ -217,7 +217,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         end
       />
 
-      <Modal open={connection.details.password === undefined && password === undefined}>
+      <Modal open={connection.details.client !== 'sqlite' && connection.details.password === undefined && password === undefined}>
         <Modal.Header>
           <span>Enter a password to access </span>
           <strong>{connection.name}</strong>

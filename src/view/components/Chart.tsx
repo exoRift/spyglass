@@ -359,9 +359,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
     chartRef.current?.setOption({
       xAxis: chart.style === 'pie'
         ? undefined
-        : {
-          data: rows.map((r) => r.x)
-        },
+        : { data: rows.map((r) => r.x) },
       series
     }, { replaceMerge: oldLength > series.length ? 'series' : undefined })
   }, [waiting, chart.style, chart.method, rows])
@@ -384,7 +382,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
         </div>
       </div>
 
-      <div className={twMerge('absolute inset-0 flex justify-center items-center text-center text-lg font-bold text-base-content/50 pointer-events-none', chart.table && 'hidden')}>Right click on me to edit my properties!</div>
+      <div className={twMerge('absolute inset-0 flex justify-center items-center text-center text-lg font-bold text-base-content/50 pointer-events-none select-none', chart.table && 'hidden')}>Right click on me to edit my properties!</div>
     </>
   )
 }

@@ -1,0 +1,14 @@
+diff --git a/dist/index.js b/dist/index.js
+index dabe584e79830f09e90e5a7c49c5a4d8716e958a..34eb9e18221090afab19553081f81a83065c6da5 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -26,7 +26,8 @@ function SchemaInspector(knex) {
+             constructor = require('./dialects/mssql').default;
+             break;
+         default:
+-            throw Error('Unsupported driver used: ' + knex.client.constructor.name);
++            if (knex.client.dialect === 'sqlite3') constructor = require('./dialects/sqlite').default;
++            else throw Error('Unsupported driver used: ' + knex.client.constructor.name);
+     }
+     return new constructor(knex);
+ }

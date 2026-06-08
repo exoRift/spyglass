@@ -55,14 +55,20 @@ export type Chart = typeof Chart.infer
 const Connection = type({
   environment: '"local" | "testing" | "development" | "staging" | "production"',
   name: 'string',
-  client: '"pg" | "sqlite3" | "mysql" | "oracledb" | "tedious"',
-  details: {
-    username: 'string',
-    'password?': 'string',
-    host: 'string',
-    'port?': type.or('number | string.numeric.parse', type('""').pipe(() => undefined)),
-    database: 'string'
-  },
+  details: type.or(
+    {
+      client: '"postgres" | "cockroachdb" | "redshift" | "mysql" | "mariadb" | "oracledb" | "mssql"',
+      username: 'string',
+      'password?': 'string',
+      host: 'string',
+      'port?': type.or('number | string.numeric.parse', type('""').pipe(() => undefined)),
+      database: 'string'
+    },
+    {
+      client: '"sqlite"',
+      filename: 'string'
+    }
+  ),
   charts: Chart.array()
 })
 export type Connection = typeof Connection.infer

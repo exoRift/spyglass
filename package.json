@@ -22,6 +22,7 @@
     "knex": "^3.1.0",
     "knex-schema-inspector": "^3.1.0",
     "open": "^11.0.0",
+    "open-file-manager-dialog": "^1.0.0",
     "react-daisyui": "^5.0.5",
     "react-exo-hooks": "^2.5.1",
     "react-icons": "^5.5.0",
@@ -46,11 +47,12 @@
     "vite-plugin-singlefile": "^2.3.3"
   },
   "patchedDependencies": {
-    "react-daisyui@5.0.5": "patches/react-daisyui@5.0.5.patch"
+    "react-daisyui@5.0.5": "patches/react-daisyui@5.0.5.patch",
+    "knex-schema-inspector@3.1.0": "patches/knex-schema-inspector@3.1.0.patch"
   },
   "optionalDependencies": {
-    "better-sqlite3": "^12.10.0",
     "data-forge": "^1.10.5",
+    "knex-bun-sqlite": "^1.4.1",
     "mysql2": "^3.22.4",
     "oracledb": "^7.0.0",
     "pg": "^8.21.0",

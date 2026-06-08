@@ -108,7 +108,11 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         case 'value': editedChart.method = { type: val, x: null, y: null }; break
         case 'aggregate_count': editedChart.method = { type: val, x: null }; break
         case 'aggregate_avg': editedChart.method = { type: val, x: null, y: null, bars: null }; break
-        case 'custom': editedChart.method = { type: val, columns: [], fn: '' }; break
+        case 'custom':
+          editedChart.method = { type: val, columns: [], fn: '' }
+          delete editedChart.sortCol
+          delete editedChart.sortDesc
+          break
       }
     } else {
       const accesses = field.split('.')
@@ -559,30 +563,35 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           <DebouncedInput type='number' min={1} delay={500} placeholder='No Limit' defaultValue={editedChart.limit} onChange={(e) => e.currentTarget.reportValidity()} onDebouncedChange={(v) => editChart('limit', v ? parseInt(v) : undefined)} className='w-full invalid:input-error' id='limit' name='limit' />
         </div>
 
-        <Join horizontal className='w-full'>
-          <div className='fieldset'>
-            <label htmlFor='sortCol' className='label'>
-              <span className='label-text'>Order By</span>
-            </label>
-            <Select disabled={!editedChart.table} defaultValue={editedChart.sortCol ?? ''} onChange={(e) => editChart('sortCol', e.currentTarget.value)} className='w-full join-item' id='sortCol' name='sortCol'>
-              <Select.Option value=''>No Order</Select.Option>
+        {editedChart.method.type !== 'custom' && (
+          <Join horizontal className='w-full'>
+            <div className='fieldset'>
+              <label htmlFor='sortCol' className='label'>
+                <span className='label-text'>Order By</span>
+              </label>
+              <Select disabled={!editedChart.table} defaultValue={editedChart.sortCol ?? ''} onChange={(e) => editChart('sortCol', e.currentTarget.value)} className='w-full join-item' id='sortCol' name='sortCol'>
+                <Select.Option value=''>No Order</Select.Option>
 
-              {(usableColumns?.map((c) => (
-                <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
-              )))}
-            </Select>
-          </div>
+                {editedChart.method.type.includes('aggregate')
+                  ? <Select.Option value='~aggregation'>Aggregation Value</Select.Option>
+                  : null}
+                {(usableColumns?.map((c) => (
+                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                )))}
+              </Select>
+            </div>
 
-          <div className='fieldset'>
-            <label htmlFor='sortDesc' className='label'>
-              <span className='label-text'>Sort</span>
-            </label>
-            <label htmlFor='sortDesc' className='relative checkbox size-10 join-item'>
-              <input type='checkbox' hidden className='absolute' disabled={!editedChart.table} defaultChecked={editedChart.sortDesc || false} onChange={(e) => editChart('sortDesc', e.currentTarget.checked || undefined)} id='sortDesc' name='sortDesc' />
-              <MdArrowUpward className='transition [:has(:checked)>&]:-scale-y-100 absolute inset-0 size-full p-2' />
-            </label>
-          </div>
-        </Join>
+            <div className='fieldset'>
+              <label htmlFor='sortDesc' className='label'>
+                <span className='label-text'>Sort</span>
+              </label>
+              <label htmlFor='sortDesc' className='relative checkbox size-10 join-item'>
+                <input type='checkbox' hidden className='absolute' disabled={!editedChart.table} defaultChecked={editedChart.sortDesc || false} onChange={(e) => editChart('sortDesc', e.currentTarget.checked || undefined)} id='sortDesc' name='sortDesc' />
+                <MdArrowUpward className='transition [:has(:checked)>&]:-scale-y-100 absolute inset-0 size-full p-2' />
+              </label>
+            </div>
+          </Join>
+        )}
       </div>
     </>
   )

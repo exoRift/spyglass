@@ -13,13 +13,17 @@ import logo from '../../assets/logo.png'
 import { MdAdd, MdBuild, MdInfo, MdEdit, MdDelete, MdFileCopy } from 'react-icons/md'
 import pkg from '../../../package.json' with { type: 'json' }
 import { PasswordInput } from '../components/PasswordInput'
+import { NativeFileInput } from '../components/NativeFileInput'
 
-const DB_CLIENT_DISPLAYNAME_MAP: Record<Connection['client'], string> = {
-  pg: 'Postgres',
-  mysql: 'MySQL / MariaDB',
+const DB_CLIENT_DISPLAYNAME_MAP: Record<Connection['details']['client'], string> = {
+  postgres: 'Postgres',
+  cockroachdb: 'CockroachDB',
+  redshift: 'Redshift',
+  mariadb: 'MariaDB',
+  mysql: 'MySQL',
   oracledb: 'Oracle',
-  sqlite3: 'SQLite',
-  tedious: 'MSSQL'
+  sqlite: 'SQLite',
+  mssql: 'MSSQL'
 }
 
 function getCopyName (config: Config, name: string): string {
@@ -61,13 +65,24 @@ function ConnectionTestResultModal ({ testResult, onClose, ...props }: React.Com
       </Modal.Body>
 
       <Modal.Actions>
-        <Button type='button' color='neutral' onClick={onClose}>Ok</Button>
+        <Button type='button' color='neutral' onClick={onClose}>OK</Button>
       </Modal.Actions>
     </Modal.Legacy>
   )
 }
 
-function ConnectionForm ({ className, defaultValues, ...props }: React.ComponentProps<typeof Form> & { defaultValues?: Connection }): React.ReactNode {
+type MergeUnion<T> = {
+  [K in T extends any ? keyof T : never]?:
+  T extends any
+    ? K extends keyof T
+      ? T[K]
+      : never
+    : never;
+}
+
+function ConnectionForm ({ className, defaultValues, ...props }: React.ComponentProps<typeof Form> & { defaultValues?: Omit<Connection, 'details'> & { details: MergeUnion<Connection['details']> } }): React.ReactNode {
+  const [client, setClient] = useState<Connection['details']['client']>(defaultValues?.details.client ?? 'postgres')
+
   const defaultSavePassword = typeof defaultValues === 'undefined'
     ? true
     : typeof defaultValues.details.password === 'string'
@@ -102,70 +117,83 @@ function ConnectionForm ({ className, defaultValues, ...props }: React.Component
         </div>
       </div>
 
-      <div className='flex gap-4 *:grow'>
-        <div className='fieldset w-1/3'>
-          <label htmlFor='username' className='label'>
-            <span className='label-text'>Username</span>
-          </label>
-          <Input id='username' name='username' defaultValue={defaultValues?.details.username} required />
-        </div>
+      {client === 'sqlite'
+        ? (
+          <div className='fieldset'>
+            <label htmlFor='filename' className='label'>
+              <span className='label-text'>Database File</span>
+            </label>
+            <NativeFileInput defaultValue={defaultValues?.details.filename} id='filename' name='filename' accept='.sqlite, .sqlite3, .db, .db3, .s3db, .sl3' required />
+          </div>
+        )
+        : (
+          <>
+            <div className='flex gap-4 *:grow'>
+              <div className='fieldset w-1/3'>
+                <label htmlFor='username' className='label'>
+                  <span className='label-text'>Username</span>
+                </label>
+                <Input id='username' name='username' defaultValue={defaultValues?.details.username} required />
+              </div>
 
-        <div className='fieldset w-2/3'>
-          <label htmlFor='password' className='label'>
-            <span className='label-text'>Password</span>
-          </label>
-          <PasswordInput id='password' name='password' placeholder='Optional...' defaultValue={defaultValues?.details.password} />
-        </div>
-      </div>
+              <div className='fieldset w-2/3'>
+                <label htmlFor='password' className='label'>
+                  <span className='label-text'>Password</span>
+                </label>
+                <PasswordInput id='password' name='password' placeholder='Optional...' defaultValue={defaultValues?.details.password} />
+              </div>
+            </div>
 
-      <div className='flex gap-4 *:grow'>
-        <div className='fieldset w-full'>
-          <label htmlFor='host' className='label'>
-            <span className='label-text'>Host</span>
-          </label>
-          <Input className='w-full' id='host' name='host' defaultValue={defaultValues?.details.host} required />
-        </div>
+            <div className='flex gap-4 *:grow'>
+              <div className='fieldset w-full'>
+                <label htmlFor='host' className='label'>
+                  <span className='label-text'>Host</span>
+                </label>
+                <Input className='w-full' id='host' name='host' defaultValue={defaultValues?.details.host} required />
+              </div>
 
-        <div className='fieldset w-1/2'>
-          <label htmlFor='port' className='label'>
-            <span className='label-text'>Port</span>
-          </label>
-          <Input className='w-full' id='port' name='port' pattern='\d+' placeholder='Optional...' defaultValue={defaultValues?.details.port} />
-        </div>
+              <div className='fieldset w-1/2'>
+                <label htmlFor='port' className='label'>
+                  <span className='label-text'>Port</span>
+                </label>
+                <Input className='w-full' id='port' name='port' pattern='\d+' placeholder='Optional...' defaultValue={defaultValues?.details.port} />
+              </div>
 
-        <div className='fieldset w-full'>
-          <label htmlFor='database' className='label'>
-            <span className='label-text'>Database</span>
-          </label>
-          <Input className='w-full' id='database' name='database' defaultValue={defaultValues?.details.database} required />
-        </div>
-      </div>
+              <div className='fieldset w-full'>
+                <label htmlFor='database' className='label'>
+                  <span className='label-text'>Database</span>
+                </label>
+                <Input className='w-full' id='database' name='database' defaultValue={defaultValues?.details.database} required />
+              </div>
+            </div>
+          </>
+        )}
 
       <div className='flex gap-4 justify-between'>
         <div className='fieldset w-max'>
           <label htmlFor='client' className='label'>
             <span className='label-text'>SQL Client (driver)</span>
           </label>
-          <Select className='w-full' id='client' name='client' defaultValue={defaultValues?.client} required>
-            <Select.Option value='pg'>Postgres (pg)</Select.Option>
-            <Select.Option value='sqlite3'>SQLite (sqlite3)</Select.Option>
-            <Select.Option value='mysql'>MySQL / MariaDB (mysql)</Select.Option>
-            <Select.Option value='oracledb'>Oracle (oracledb)</Select.Option>
-            <Select.Option value='tedious'>MSSQL (tedious)</Select.Option>
+          <Select className='w-full' id='client' name='client' value={client} onChange={(e) => setClient(e.currentTarget.value as Connection['details']['client'])} required>
+            {Object.entries(DB_CLIENT_DISPLAYNAME_MAP).map(([driver, name]) => (
+              <Select.Option value={driver} key={driver}>{name}</Select.Option>
+            ))}
           </Select>
         </div>
 
-        <div className='flex flex-col'>
-          <label htmlFor='savepass' className='opacity-0'>Save Password</label>
-          <div className='grow flex items-center'>
-            <Form.Label title='Save Password' className='text-sm'>
-              <Tooltip message='If not saved, password will be prompted on connect' position='left'>
-                <MdInfo className='cursor-help' />
-              </Tooltip>
-              <Toggle defaultChecked={defaultSavePassword} id='savepass' name='savepass' color='secondary' />
-            </Form.Label>
+        {client !== 'sqlite' && (
+          <div className='flex flex-col'>
+            <label htmlFor='savepass' className='opacity-0'>Save Password</label>
+            <div className='grow flex items-center'>
+              <Form.Label title='Save Password' className='text-sm'>
+                <Tooltip message='If not saved, password will be prompted on connect' position='left'>
+                  <MdInfo className='cursor-help' />
+                </Tooltip>
+                <Toggle defaultChecked={defaultSavePassword} id='savepass' name='savepass' color='secondary' />
+              </Form.Label>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </Form>
   )
@@ -182,8 +210,11 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
     const mode = e.nativeEvent.submitter!.id
     const data = new FormData(form)
 
-    const obj = Object.fromEntries(data.entries()) as any
-    if (!obj.savepass) delete obj.password
+    const {
+      savepass,
+      ...obj
+    } = Object.fromEntries(data.entries()) as any
+    if (!savepass) delete obj.password
     obj.charts = []
 
     const nameInput = document.getElementById('name') as HTMLInputElement
@@ -196,12 +227,30 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
 
     switch (mode) {
       case 'test':
-        void testConnection(obj.client, obj)
+        void testConnection(obj)
           .then(setTestResult)
           .finally(() => setShowTestResultsModal(true))
 
         break
-      case 'submit':
+      case 'submit': {
+        const {
+          client,
+          username,
+          password,
+          host,
+          port,
+          database,
+          filename
+        } = obj
+        obj.details = {
+          client,
+          username,
+          password,
+          host,
+          port,
+          database,
+          filename
+        }
         config.connections.push(obj)
 
         void saveConfig(config)
@@ -216,6 +265,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
           })
 
         break
+      }
     }
   }, [config])
 
@@ -265,8 +315,11 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
     const mode = e.nativeEvent.submitter!.id
     const data = new FormData(form)
 
-    const obj = Object.fromEntries(data.entries()) as any
-    if (!obj.savepass) delete obj.password
+    const {
+      savepass,
+      ...obj
+    } = Object.fromEntries(data.entries()) as any
+    if (!savepass) delete obj.password
     obj.charts = []
 
     const nameInput = document.getElementById('name') as HTMLInputElement
@@ -279,12 +332,30 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
 
     switch (mode) {
       case 'test':
-        void testConnection(obj.client, obj)
+        void testConnection(obj)
           .then(setTestResult)
           .finally(() => setShowTestResultsModal(true))
 
         break
-      case 'submit':
+      case 'submit': {
+        const {
+          client,
+          username,
+          password,
+          host,
+          port,
+          database,
+          filename
+        } = obj
+        obj.details = {
+          client,
+          username,
+          password,
+          host,
+          port,
+          database,
+          filename
+        }
         Object.assign(connection, obj)
 
         void saveConfig(config)
@@ -299,6 +370,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
           })
 
         break
+      }
     }
   }, [config, connection])
 
@@ -409,9 +481,9 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
               <Table.Row key={c.name} className='transition-colors duration-300 not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connIndex: i })}>
                 <span className='[:has(>&)]:whitespace-nowrap [:has(>&)]:w-[1%]'>{envToBadge(c.environment)}</span>
                 <span className='font-semibold'>{c.name}</span>
-                <span>{c.details.username}</span>
-                <span>{c.details.database}</span>
-                <span>{DB_CLIENT_DISPLAYNAME_MAP[c.client]}</span>
+                <span>{c.details.client === 'sqlite' ? 'File' : c.details.username}</span>
+                <span>{c.details.client === 'sqlite' ? c.details.filename : c.details.database}</span>
+                <span>{DB_CLIENT_DISPLAYNAME_MAP[c.details.client]}</span>
                 <ConnectionEditButton config={config} connIndex={i} startEditing={editing === i} />
               </Table.Row>
             ))}

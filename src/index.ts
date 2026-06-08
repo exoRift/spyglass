@@ -2,14 +2,16 @@ import { Webview } from 'webview-bun'
 import path from 'path'
 import util from 'util'
 import { type } from 'arktype'
-import Knex from 'knex'
+import Knex, { type Client } from 'knex'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 import open from 'open'
 import vm from 'vm'
+import { openFileManagerDialog } from 'open-file-manager-dialog'
 
 import { type Chart, type Connection, Config } from './lib/config'
 import * as logger from './lib/logger'
 import { changecwd } from './lib/depcache'
+import pkg from '../package.json'
 
 const args = util.parseArgs({
   args: process.argv,
@@ -24,12 +26,15 @@ const args = util.parseArgs({
 const CONFIG_LOCATION = args.values.config ? path.resolve(args.values.config) : path.resolve(process.cwd(), './spyglass.json')
 logger.info('Config Location:', CONFIG_LOCATION)
 
-const DRIVERS: Record<Connection['client'], string> = {
-  pg: 'pg',
-  sqlite3: 'better-sqlite3',
+const DRIVERS: Record<Connection['details']['client'], string> = {
+  postgres: 'pg',
+  cockroachdb: 'pg',
+  redshift: 'pg',
+  sqlite: 'knex-bun-sqlite',
   mysql: 'mysql2',
+  mariadb: 'mysql2',
   oracledb: 'oracledb',
-  tedious: 'tedious'
+  mssql: 'tedious'
 }
 
 function loadConfig (): Promise<Config> {
@@ -60,10 +65,11 @@ function moduleExists (name: string): Promise<boolean> {
     .catch(() => false)
 }
 
-async function constructConnection (client: Connection['client'], details: Knex.Knex.StaticConnectionConfig): Promise<Knex.Knex | undefined> {
+async function constructConnection ({ client, ...details }: Knex.Knex.StaticConnectionConfig & { client: Connection['details']['client'] }): Promise<Knex.Knex | undefined> {
   using _ = await changecwd()
 
   const driver = DRIVERS[client]
+
   const installed = await moduleExists(driver)
   if (!installed) {
     logger.info(`Alerting user to missing ${client} driver (${driver})`)
@@ -72,7 +78,7 @@ async function constructConnection (client: Connection['client'], details: Knex.
   }
 
   return Knex({
-    client,
+    client: driver === 'knex-bun-sqlite' ? (await import('knex-bun-sqlite')).default as unknown as typeof Client : driver,
     connection: {
       application_name: 'Spyglass',
       ...details
@@ -89,10 +95,11 @@ const binds = {
     using _ = await changecwd()
     return await moduleExists('data-forge')
   },
-  async installDriver (driver: string, noRestart?: true) {
-    logger.info('Installing:', driver)
+  async installDriver (driver: string, noRestart?: true | null) {
+    const version = (pkg.optionalDependencies as Record<string, string>)[driver]
+    logger.info('Installing:', driver, version)
 
-    await Bun.$`BUN_BE_BUN=1 ${process.execPath} install -g ${driver}`
+    await Bun.$`BUN_BE_BUN=1 ${process.execPath} install -g ${driver}${version ? `@${version}` : ''}`
       .then(() => {
         logger.info(driver, 'installed')
 
@@ -126,25 +133,17 @@ const binds = {
         return null
       })
   },
-  async testConnection (client: Connection['client'], options: Connection['details'] & { password: string }): Promise<number | null> {
-    const details = {
-      host: options.host,
-      port: options.port,
-      username: options.username,
-      password: options.password,
-      database: options.database
-    }
-
-    const connection = await constructConnection(client, details)
+  async testConnection (details: Connection['details'] & { password: string }): Promise<number | null> {
+    const connection = await constructConnection(details)
     if (!connection) return null
 
     const ts = performance.now()
-    return await connection.raw('SELECT current_user')
+    return await connection.raw('SELECT 1+1')
       .then(() => performance.now() - ts)
       .catch((err) => err.message || err.code || err.toString())
       .finally(() => void connection.destroy())
   },
-  async setActiveConnection (index: number, password?: string): Promise<number | null> {
+  async setActiveConnection (index: number, password?: string | null): Promise<number | null> {
     if (activeConnection) {
       void activeConnection.destroy()
       activeConnection = undefined
@@ -154,10 +153,12 @@ const binds = {
     const connection = config.connections[index]
     if (!connection) throw Error('Somehow trying to set nonexistent active connection')
     const details = structuredClone(connection.details)
-    if (password !== undefined) details.password = password
-    if (details.password === undefined) throw Error('Missing password for connection')
+    if (details.client !== 'sqlite') {
+      if (password !== undefined && password !== null) details.password = password
+      if (details.password === undefined) throw Error('Missing password for connection')
+    }
 
-    activeConnection = await constructConnection(connection.client, details)
+    activeConnection = await constructConnection(details)
 
     return null
   },
@@ -167,8 +168,6 @@ const binds = {
       return null
     }
 
-    // Dynamically import here to ensure the inspector resolves at runtime
-    // and to avoid potential deadlocks in Bun single-file builds.
     const { SchemaInspector } = await import('knex-schema-inspector', { with: { type: 'module' } })
     const spector = SchemaInspector(activeConnection)
 
@@ -210,8 +209,6 @@ const binds = {
 
     const validJoins = chart.joins?.filter((j) => j.baseColumn && j.foreignColumn) ?? []
 
-    // TODO: Only query the needed columns and embed aggregation at the SQL level.
-    // TODO: For custom map functions, multi-select for which columns to select (auto-alias if overlap)
     const query = activeConnection(chart.table)
     for (const join of validJoins) {
       if (!join.baseColumn || !join.foreignColumn) continue
@@ -220,12 +217,11 @@ const binds = {
     }
     if (chart.where) query.whereRaw(chart.where)
 
-    if (chart.sortCol) query.orderBy(chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
-    if (chart.limit) query.limit(chart.limit)
-
+    let didSelect = false
     switch (chart.method.type) {
       case 'value':
         if (chart.method.x && chart.method.y) {
+          didSelect = true
           query.select({
             x: chart.method.x,
             y: chart.method.y
@@ -234,16 +230,18 @@ const binds = {
         break
       case 'aggregate_count':
         if (chart.method.x) {
+          didSelect = true
           query
             .select({
               x: chart.method.x,
-              y: 'COUNT(*)'
+              y: activeConnection.count(chart.method.x)
             })
             .groupBy(chart.method.x)
         }
         break
       case 'aggregate_count_unique':
         if (chart.method.x && chart.method.y) {
+          didSelect = true
           query
             .select({
               x: chart.method.x,
@@ -254,6 +252,7 @@ const binds = {
         break
       case 'aggregate_avg':
         if (chart.method.x && chart.method.y) {
+          didSelect = true
           query
             .select({
               x: chart.method.x,
@@ -282,19 +281,28 @@ const binds = {
         break
       case 'aggregate_sum':
         if (chart.method.x && chart.method.y) {
+          didSelect = true
           query
             .select({
               x: chart.method.x,
-              y: activeConnection.raw('SUM(??)', chart.method.y)
+              y: activeConnection.sum(chart.method.y)
             })
             .groupBy(chart.method.x)
         }
         break
       case 'custom':
-        query
-          .select(chart.method.columns.map((c) => activeConnection!.column(c).as(c.replaceAll('.', '_'))))
+        if (chart.method.columns.length) {
+          didSelect = true
+          query
+            .select(chart.method.columns.map((c) => activeConnection!.column(c).as(c.replaceAll('.', '_'))))
+        }
         break
     }
+
+    if (!didSelect) return null
+
+    if (chart.sortCol) query.orderBy(chart.sortCol === '~aggregation' ? 'y' : chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
+    if (chart.limit) query.limit(chart.limit)
 
     return await query
       .then(async (rows) => {
@@ -339,6 +347,17 @@ const binds = {
         logger.error('Failed to execute query', err)
         return null
       })
+  },
+  promptFile (accept?: string[] | null) {
+    return openFileManagerDialog(process.cwd(), { filter: accept ?? undefined, limit: 1 })
+      .then(({ files, canceled }) => {
+        if (canceled) return null
+        else return files[0] ?? null
+      })
+      .catch((err) => {
+        logger.error('Failed to pick a file in selection dialog', err)
+        return null
+      })
   }
 /* eslint-disable-next-line @typescript-eslint/no-empty-object-type */
 } as const satisfies Record<string, Promise<{} | null> | {} | null>
@@ -365,6 +384,7 @@ declare global {
   var setActiveConnection: Promisify<typeof binds.setActiveConnection>
   var getTables: Promisify<typeof binds.getTables>
   var queryRows: Promisify<typeof binds.queryRows>
+  var promptFile: Promisify<typeof binds.promptFile>
 }
 /* eslint-enable no-var */
 
