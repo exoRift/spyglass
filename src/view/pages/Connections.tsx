@@ -320,7 +320,6 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
       ...obj
     } = Object.fromEntries(data.entries()) as any
     if (!savepass) delete obj.password
-    obj.charts = []
 
     const nameInput = document.getElementById('name') as HTMLInputElement
     if (config.connections.some((c) => c !== connection && c.name === obj.name)) {
@@ -404,7 +403,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
             </Modal.Header>
 
             <Modal.Body>
-              <ConnectionForm id={formID} defaultValues={connection} onSubmit={onSubmit} />
+              <ConnectionForm key={+connection} id={formID} defaultValues={connection} onSubmit={onSubmit} />
             </Modal.Body>
 
             <Modal.Actions>

@@ -1,7 +1,7 @@
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 
 import { twMerge } from 'tailwind-merge'
-import { useMap, useObject } from 'react-exo-hooks'
+import { getUnproxiedObject, useMap, useObject } from 'react-exo-hooks'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { renderRoute } from '../index'
 
@@ -10,7 +10,7 @@ import { Alert, Button, Drawer, Form, Input, Modal, Tooltip } from 'react-daisyu
 import { Chart } from '../components/Chart'
 import { ChartEditPane } from '../components/ChartEditPane'
 
-import { MdArrowLeft, MdCable, MdDelete, MdSave, MdWarning } from 'react-icons/md'
+import { MdArrowLeft, MdCable, MdDelete, MdFileCopy, MdSave, MdWarning } from 'react-icons/md'
 import 'dashup/style.css'
 
 export default function Dashboard ({ navigate, connIndex }: { navigate: typeof renderRoute, connIndex: number }): React.ReactNode {
@@ -62,7 +62,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       minHeight: 10,
       maxWidth: 100
     }))
-  }, [errors, +errors, connection, +connection, connected, tables])
+  }, [errors, +errors, connection, +connection, connection.charts, +connection.charts, connected, tables])
 
   const createWidget = useCallback((e: React.MouseEvent) => {
     const x = Math.min(Math.round(e.clientX / e.currentTarget.clientWidth * 100), 100 - 30)
@@ -195,10 +195,18 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         side={editedChart && (
           <div className='w-96 h-screen overflow-auto bg-base-200 p-6 space-y-4'>
             <div className='flex gap-4 items-center justify-between mb-4'>
-              <h1 className='text-2xl font-bold'>Edit Chart</h1>
+              <div className='flex items-center gap-4'>
+                <h1 className='text-2xl font-bold'>Edit Chart</h1>
+
+                <Tooltip color='info' message='Duplicate' position='right'>
+                  <button className='flex items-center text-info text-xl cursor-pointer' onClick={() => { connection.charts.push(structuredClone(getUnproxiedObject(connection.charts[editing!]!))); setEditing(null); setIsUnsaved(true) }}>
+                    <MdFileCopy />
+                  </button>
+                </Tooltip>
+              </div>
 
               <Tooltip color='error' message='Delete' position='left'>
-                <button className='text-error text-2xl cursor-pointer' onClick={() => { connection.charts.splice(editing!, 1); setEditing(null); setIsUnsaved(true) }}>
+                <button className='flex items-center text-error text-2xl cursor-pointer' onClick={() => { connection.charts.splice(editing!, 1); setEditing(null); setIsUnsaved(true) }}>
                   <MdDelete />
                 </button>
               </Tooltip>
@@ -226,7 +234,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         <Modal.Body>
           <Form id='password_form' onSubmit={connect}>
             <div className='fieldset'>
-              <Input placeholder='Enter Password...' name='password' id='password' type='password' className='w-full' />
+              <Input autoFocus placeholder='Enter Password...' name='password' id='password' type='password' className='w-full' />
               {passwordError && <label htmlFor='password' className='label text-error'>{passwordError}</label>}
             </div>
           </Form>

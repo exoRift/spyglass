@@ -82,6 +82,10 @@ async function constructConnection ({ client, ...details }: Knex.Knex.StaticConn
     connection: {
       application_name: 'Spyglass',
       ...details
+    },
+    pool: {
+      min: 0,
+      max: 10
     }
   })
 }

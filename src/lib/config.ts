@@ -77,4 +77,5 @@ export const Config = type({
   theme: type('"system" |  "light" | "dark"').default('system'),
   connections: Connection.array().default(() => [])
 })
+  .onDeepUndeclaredKey('delete')
 export type Config = typeof Config.infer

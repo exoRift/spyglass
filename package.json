@@ -24,7 +24,7 @@
     "open": "^11.0.0",
     "open-file-manager-dialog": "^1.0.0",
     "react-daisyui": "^5.0.5",
-    "react-exo-hooks": "^2.5.1",
+    "react-exo-hooks": "^2.6.0",
     "react-icons": "^5.5.0",
     "tailwind-merge": "^3.6.0",
     "webview-bun": "github:exoRift/webview-bun#a51742028afd048ec58bc8eb90fa6870bab7810e"
