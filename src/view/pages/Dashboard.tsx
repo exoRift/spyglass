@@ -77,8 +77,8 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       },
       title: 'untitled',
       subtitle: '',
-      xTitle: 'untitled x',
-      yTitle: 'untitled y',
+      xTitle: 'Category',
+      yTitle: 'Value',
       method: {
         type: 'value',
         x: null,

@@ -178,16 +178,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       isAnimating.current = false
     }
 
-    function onTipShow (): void {
-      widget?.classList.add('!overflow-visible')
-    }
-    function onTipHide (): void {
-      widget?.classList.remove('!overflow-visible')
-    }
-
     chartRef.current.on('finished', onFinished)
-    chartRef.current.on('showTip', onTipShow)
-    chartRef.current.on('hideTip', onTipHide)
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'cross' } } })
@@ -199,8 +190,6 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     return () => {
       aborter.abort()
       chartRef.current?.off('finished', onFinished)
-      chartRef.current?.off('showTip', onTipShow)
-      chartRef.current?.off('hideTip', onTipHide)
       chartRef.current?.dispose()
       observer.disconnect()
     }
@@ -284,12 +273,15 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         bottom: 8
       },
       grid: {
-        left: '10%',
-        right: '10%',
-        bottom: figuredType === 'time' ? 80 : 40,
-        containLabel: true
+        bottom: figuredType === 'time' ? 105 : 75
       },
       xAxis: {
+        name: chart.style === 'pie' ? undefined : chart.xTitle,
+        nameLocation: 'center',
+        nameGap: 30,
+        nameTextStyle: {
+          fontWeight: 'bold'
+        },
         type: figuredType,
         axisLabel: {
           hideOverlap: true
@@ -297,7 +289,11 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       yAxis: {
         type: 'value',
-        name: 'Value'
+        nameLocation: 'center',
+        nameTextStyle: {
+          fontWeight: 'bold'
+        },
+        name: chart.yTitle
       },
       dataZoom: figuredType === 'time' && chart.style !== 'pie'
         ? {
@@ -318,33 +314,40 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
     isAnimating.current = true
 
-    const series: echarts.SeriesOption[] = [{
-      name: 'Series 1',
-      type: chart.style,
-      data: chart.style === 'pie'
-        ? rows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
-        : rows.map((r) => ({ value: [r.x, parseFloat(r.y)] })),
-      universalTransition: true
-    }]
+    const series: echarts.SeriesOption[] = []
 
-    if (chart.style !== 'pie' && ((chart.method.type === 'aggregate_avg' && chart.method.bars) || (chart.method.type === 'custom' && rows[0] && 'lowBar' in rows[0] && 'highBar' in rows[0]))) {
+    const grouped = chart.breakdown ? Object.groupBy(rows, (r) => r.group) : { [chart.yTitle]: rows }
+    for (const group in grouped) {
+      const groupRows = grouped[group]!
+
       series.push({
-        type: 'custom',
-        name: chart.method.type === 'aggregate_avg'
-          ? chart.method.bars === 'stddev'
-            ? 'Std. Dev.'
-            : 'Min / Max'
-          : 'Error',
-        renderItem: errorBoundRender,
-        color: chart.barColor ?? DEFAULT_BARS_COLOR,
-        data: rows.map((r) => ({ value: [r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)] })),
-        itemStyle: {
-          borderWidth: 1.5
-        },
-        encode: { x: 0, y: [2, 3] },
-        universalTransition: true,
-        zlevel: 1
+        name: group,
+        type: chart.style,
+        data: chart.style === 'pie'
+          ? groupRows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
+          : groupRows.map((r) => ({ value: [r.x, parseFloat(r.y)] })),
+        universalTransition: true
       })
+
+      if (chart.style !== 'pie' && ((chart.method.type === 'aggregate_avg' && chart.method.bars) || (chart.method.type === 'custom' && groupRows[0] && 'lowBar' in groupRows[0] && 'highBar' in groupRows[0]))) {
+        series.push({
+          type: 'custom',
+          name: chart.method.type === 'aggregate_avg'
+            ? chart.method.bars === 'stddev'
+              ? 'Std. Dev.'
+              : 'Min / Max'
+            : 'Error',
+          renderItem: errorBoundRender,
+          color: chart.barColor ?? DEFAULT_BARS_COLOR,
+          data: groupRows.map((r) => ({ value: [r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)] })),
+          itemStyle: {
+            borderWidth: 1.5
+          },
+          encode: { x: 0, y: [2, 3] },
+          universalTransition: true,
+          zlevel: 1
+        })
+      }
     }
 
     const oldLength = (chartRef.current?.getOption() as any)?.series?.length ?? 0
@@ -355,7 +358,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         : { data: rows.map((r) => r.x) },
       series
     }, { replaceMerge: oldLength > series.length ? 'series' : undefined })
-  }, [chart.style, chart.method, rows, chart.traceColors, chart.barColor, waitForAnimationToFinish, canQuery])
+  }, [chart.style, chart.method, rows, chart.traceColors, chart.barColor, chart.breakdown, waitForAnimationToFinish, canQuery])
 
   return (
     <>

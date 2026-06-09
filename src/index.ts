@@ -205,7 +205,7 @@ const binds = {
         return null
       })
   },
-  async queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc' | 'method'> & { table: string }): Promise<any[] | null | string> {
+  async queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc' | 'method' | 'breakdown'> & { table: string }): Promise<any[] | null | string> {
     if (!activeConnection) {
       logger.error('Attempted to query without an active connection')
       return null
@@ -304,6 +304,11 @@ const binds = {
     }
 
     if (!didSelect) return null
+
+    if (chart.breakdown) {
+      query.select({ group: chart.breakdown })
+      if (chart.method.type.includes('aggregate')) query.groupBy('group')
+    }
 
     if (chart.sortCol) query.orderBy(chart.sortCol === '~aggregation' ? 'y' : chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
     if (chart.limit) query.limit(chart.limit)

@@ -9,7 +9,7 @@ import { DEFAULT_BARS_COLOR as DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, type Cha
 import { Button, Divider, Dropdown, Input, Join, Modal, Select, Toggle, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
 import { Multiselect } from '../components/Multiselect'
-import CodeMirror from '@uiw/react-codemirror'
+import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 
 import { MdDelete, MdHelp, MdArrowUpward, MdAdd } from 'react-icons/md'
@@ -59,7 +59,7 @@ function MapFunctionHelpButton (): React.ReactNode {
               </p>
               <p>
                 A column can be accessed with <code>rows[INDEX].COLUMN_NAME</code>.
-                Be sure to <code>return</code> an array of datapoints <code>&#123; x: any, y: number, lowBar?: number, highBar?: number &#125;</code>.
+                Be sure to <code>return</code> an array of datapoints <code>&#123; x: any, y: number, lowBar?: number, highBar?: number, group?: string | number &#125;</code>.
                 If <code>x</code> can be interpreted as a date from a string, it will be. <code>y</code> should be a number.
               </p>
               <p>
@@ -544,7 +544,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                       <span className='label-text'>Map Function</span>
                       <MapFunctionHelpButton />
                     </label>
-                    <DebouncedInput theme={matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'} extensions={[javascript()]} delay={500} className='font-mono' Comp={CodeMirror} id='mapFn' placeholder='JS Code...' value={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
+                    <DebouncedInput theme={matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'} extensions={[javascript(), EditorView.lineWrapping]} delay={500} className='font-mono text-wrap' Comp={CodeMirror} id='mapFn' placeholder='JS Code...' value={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
                     {!isForgeInstalled && (
                       <Button size='xs' color='neutral' onClick={() => (document.getElementById('forge-modal') as HTMLDialogElement).showModal()}>Install DataForge (optional)</Button>
                     )}
@@ -569,7 +569,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
 
       <div className='fieldset w-full'>
         <div className={twMerge('flex items-start justify-between gap-4', editedChart.style === 'pie' && 'justify-end')}>
-          {editedChart.style !== 'pie' && (
+          {editedChart.style !== 'pie' && editedChart.method.type !== 'custom' && (
             <div className='flex items-center gap-2'>
               <Toggle size='xs' color='secondary' defaultChecked={editedChart.breakdown !== undefined} onChange={(e) => editChart('breakdown', e.currentTarget.checked ? null : undefined)} id='breakdown_toggle' name='breakdown_toggle' />
               <label className='label [:checked+&]:text-secondary transition-colors' htmlFor='breakdown_toggle'>
@@ -584,7 +584,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             </label>
 
             {Array.from({ length: Math.max(editedChart.traceColors?.length ?? 0, DEFAULT_TRACE_COLORS.length) }, (_, i) => (
-              <Tooltip key={i} style={{ transitionDelay: `${i * 40}ms` }} message={`Trace ${i + 1}`} className={twMerge('transition-all duration-500 block transition-discrete opacity-100 starting:opacity-0', editedChart.breakdown === undefined && editedChart.style !== 'pie' && i > 0 && 'hidden opacity-0')}>
+              <Tooltip key={i} style={{ transitionDelay: `${i * 40}ms` }} message={`Trace ${i + 1}`} className={twMerge('transition-all duration-300 block transition-discrete opacity-100 starting:opacity-0', editedChart.breakdown === undefined && editedChart.style !== 'pie' && i > 0 && 'hidden opacity-0')}>
                 <label style={{ backgroundColor: editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i] }} className='flex justify-center size-4 rounded-full cursor-pointer hover:ring focus-within:ring-2' htmlFor={`traceColors_${i}`}>
                   <input type='color' defaultValue={editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i]} onChange={(e) => { editedChart.traceColors ??= []; editedChart.traceColors[i] = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id={`traceColors_${i}`} name={`traceColors_${i}`} />
                 </label>
@@ -598,6 +598,20 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                 </label>
               </Tooltip>
             )}
+          </div>
+        </div>
+
+        <div className={twMerge('transition-all duration-300 transition-discrete starting:bg-base-300 bg-base-300/0 starting:h-0 h-20', editedChart.breakdown === undefined && 'hidden h-0 overflow-hidden')}>
+          <div className='transition-all duration-300 transition-discrete fieldset starting:scale-75 scale-100'>
+            <label className='label' htmlFor='breakdown'>
+              <span className='label-text'>Breakdown Column</span>
+            </label>
+
+            <Select key={editedChart.breakdown} id='breakdown' name='breakdown' defaultValue={editedChart.breakdown ?? ''} onChange={(e) => editChart('breakdown', e.currentTarget.value)}>
+              <Select.Option value='' disabled>Choose a column</Select.Option>
+
+              {usableColumns?.map((c) => <Select.Option key={c.identifier} value={c.display_name}>{c.display_name}</Select.Option>)}
+            </Select>
           </div>
         </div>
       </div>
