@@ -62,7 +62,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       minHeight: 10,
       maxWidth: 100
     }))
-  }, [errors, +errors, connection, +connection, connection.charts, +connection.charts, connected, tables])
+  }, [errors, +errors, connection.charts, +connection.charts, connected, tables])
 
   const createWidget = useCallback((e: React.MouseEvent) => {
     const x = Math.min(Math.round(e.clientX / e.currentTarget.clientWidth * 100), 100 - 30)
@@ -150,6 +150,11 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
 
   useEffect(() => setIsUnsaved((prior) => prior !== null), [connection, +connection])
 
+  useEffect(() => {
+    // Dashup widgets start at the wrong width for some reason. This will correct them
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 5)
+  }, [])
+
   const editedChart = editing === null ? null : connection.charts[editing]!
 
   return (
@@ -183,7 +188,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         </Button>
       </header>
 
-      <div className='h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&_.dashup-widget:hover]:!z-30' onDoubleClick={createWidget}>
+      <div className={twMerge('transition duration-700 h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&_.dashup-widget:hover]:!z-30 opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
           <Dash key={dashKey} widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='!transition-none' onChange={updateWidgets} />
           <div className={twMerge('transition fixed min-h-screen inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
@@ -199,7 +204,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
                 <h1 className='text-2xl font-bold'>Edit Chart</h1>
 
                 <Tooltip color='info' message='Duplicate' position='right'>
-                  <button className='flex items-center text-info text-xl cursor-pointer' onClick={() => { connection.charts.push(structuredClone(getUnproxiedObject(connection.charts[editing!]!))); setEditing(null); setIsUnsaved(true) }}>
+                  <button className='flex items-center text-info text-xl cursor-pointer' onClick={() => { connection.charts.splice(editing!, 0, structuredClone(getUnproxiedObject(connection.charts[editing!]!))); setEditing(null); setIsUnsaved(true) }}>
                     <MdFileCopy />
                   </button>
                 </Tooltip>

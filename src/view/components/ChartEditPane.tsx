@@ -1,17 +1,18 @@
 import { Fragment, useCallback, useMemo } from 'react'
 import { usePromise } from 'react-exo-hooks'
 import { createPortal } from 'react-dom'
+import { twMerge } from 'tailwind-merge'
+import type { Column } from 'knex-schema-inspector/dist/types/column'
 
-import type { Chart as ChartConfig } from '../../lib/config'
+import { DEFAULT_BARS_COLOR as DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, type Chart as ChartConfig } from '../../lib/config'
 
-import { Button, Divider, Dropdown, Input, Join, Modal, Select } from 'react-daisyui'
+import { Button, Divider, Dropdown, Input, Join, Modal, Select, Toggle, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
 import { Multiselect } from '../components/Multiselect'
 import CodeMirror from '@uiw/react-codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 
 import { MdDelete, MdHelp, MdArrowUpward, MdAdd } from 'react-icons/md'
-import type { Column } from 'knex-schema-inspector/dist/types/column'
 
 type Widen<T> = {
   [K in keyof T]: T[K] extends string ? string : T[K];
@@ -85,6 +86,14 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
   const { result: isForgeInstalled = true } = usePromise(() => () => hasDataForge(), [])
 
   const editChart = useCallback(<T extends FlattenObjectKeys<ChartConfig>> (field: T, value: NestedAccess<ChartConfig, T>): void => {
+    if (typeof value === 'string') {
+      value = value
+        .replace(/[\u2014]/g, '--')               // emdash
+        .replace(/[\u2022]/g, '*')                // bullet
+        .replace(/[\u2018\u2019]/g, "'")          // smart single quotes
+        .replace(/[\u201C\u201D]/g, '"') as any   // smart double quotes
+    }
+
     if (field === 'table') {
       if ('x' in editedChart.method) editedChart.method.x = null
       if ('y' in editedChart.method) editedChart.method.y = null
@@ -94,10 +103,11 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       if (y) y.value = ''
 
       delete editedChart.joins
-    } else if (field === 'method.fn' && typeof value === 'string') {
-      value = value
-        .replace(/[“”]/g, '"')
-        .replace(/[‘’]/g, "'") as any
+    }
+
+    if (field === 'style' && value === 'pie') {
+      editedChart.breakdown = undefined
+      if ('bars' in editedChart.method) editedChart.method.bars = null
     }
 
     if (field === 'method.type') {
@@ -264,7 +274,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
 
         <div className='fieldset w-full'>
           <label htmlFor='type' className='label'>
-            <span className='label-text'>Chart Type</span>
+            <span className='label-text'>Chart Style</span>
           </label>
           <Select defaultValue={editedChart.style} onChange={(e) => editChart('style', e.currentTarget.value as ChartConfig['style'])} className='w-full' id='type' name='type'>
             <Select.Option value='bar'>Bar</Select.Option>
@@ -501,16 +511,18 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     </div>
                   </div>
 
-                  <div className='fieldset w-full'>
-                    <label htmlFor='bars' className='label'>
-                      <span className='label-text'>Error Bars</span>
-                    </label>
-                    <Select defaultValue={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
-                      <Select.Option value=''>None</Select.Option>
-                      <Select.Option value='stddev'>Standard Deviation</Select.Option>
-                      <Select.Option value='minmax'>Minimum / Maximum</Select.Option>
-                    </Select>
-                  </div>
+                  {editedChart.style !== 'pie' && (
+                    <div className='fieldset w-full'>
+                      <label htmlFor='bars' className='label'>
+                        <span className='label-text'>Error Bars</span>
+                      </label>
+                      <Select defaultValue={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
+                        <Select.Option value=''>None</Select.Option>
+                        <Select.Option value='stddev'>Standard Deviation</Select.Option>
+                        <Select.Option value='minmax'>Minimum / Maximum</Select.Option>
+                      </Select>
+                    </div>
+                  )}
                 </Fragment>
               )
             case 'custom':
@@ -553,6 +565,41 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           <span className='label-text'>Filter</span>
         </label>
         <DebouncedInput delay={500} placeholder='Raw SQL WHERE Clause...' defaultValue={editedChart.where} onDebouncedChange={(v) => editChart('where', v)} className='w-full' id='where' name='where' />
+      </div>
+
+      <div className='fieldset w-full'>
+        <div className={twMerge('flex items-start justify-between gap-4', editedChart.style === 'pie' && 'justify-end')}>
+          {editedChart.style !== 'pie' && (
+            <div className='flex items-center gap-2'>
+              <Toggle size='xs' color='secondary' defaultChecked={editedChart.breakdown !== undefined} onChange={(e) => editChart('breakdown', e.currentTarget.checked ? null : undefined)} id='breakdown_toggle' name='breakdown_toggle' />
+              <label className='label [:checked+&]:text-secondary transition-colors' htmlFor='breakdown_toggle'>
+                <span className='label-text'>Breakdown</span>
+              </label>
+            </div>
+          )}
+
+          <div className='flex justify-end items-center flex-wrap gap-2'>
+            <label className='label'>
+              <span className='label-text'>Colors</span>
+            </label>
+
+            {Array.from({ length: Math.max(editedChart.traceColors?.length ?? 0, DEFAULT_TRACE_COLORS.length) }, (_, i) => (
+              <Tooltip key={i} style={{ transitionDelay: `${i * 40}ms` }} message={`Trace ${i + 1}`} className={twMerge('transition-all duration-500 block transition-discrete opacity-100 starting:opacity-0', editedChart.breakdown === undefined && editedChart.style !== 'pie' && i > 0 && 'hidden opacity-0')}>
+                <label style={{ backgroundColor: editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i] }} className='flex justify-center size-4 rounded-full cursor-pointer hover:ring focus-within:ring-2' htmlFor={`traceColors_${i}`}>
+                  <input type='color' defaultValue={editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i]} onChange={(e) => { editedChart.traceColors ??= []; editedChart.traceColors[i] = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id={`traceColors_${i}`} name={`traceColors_${i}`} />
+                </label>
+              </Tooltip>
+            ))}
+
+            {editedChart.method.type === 'aggregate_avg' && editedChart.method.bars && (
+              <Tooltip message='Bars'>
+                <label style={{ backgroundColor: editedChart.barColor ?? DEFAULT_BAR_COLOR }} className='flex justify-center size-4 rounded-sm cursor-pointer hover:ring focus-within:ring-2' htmlFor='barColor'>
+                  <input type='color' defaultValue={editedChart.barColor ?? DEFAULT_BAR_COLOR} onChange={(e) => { editedChart.barColor = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id='barColor' name='barColor' />
+                </label>
+              </Tooltip>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className='flex gap-4 *:grow'>

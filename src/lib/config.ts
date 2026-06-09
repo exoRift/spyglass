@@ -41,6 +41,9 @@ const Chart = type({
       fn: 'string'
     })
   ),
+  'breakdown?': 'string | null',
+  'traceColors?': 'string[]',
+  'barColor?': 'string',
   style: '"bar" | "line" | "pie"',
   'joins?': Join.array(),
   'where?': 'string',
@@ -79,3 +82,17 @@ export const Config = type({
 })
   .onDeepUndeclaredKey('delete')
 export type Config = typeof Config.infer
+
+export const DEFAULT_BARS_COLOR = '#fb7085'
+
+export const DEFAULT_TRACE_COLORS = [
+  '#5470c6',
+  '#91cc75',
+  '#fac858',
+  '#ee6666',
+  '#73c0de',
+  '#3ba272',
+  '#fc8452',
+  '#9a60b4',
+  '#ea7ccc'
+] as const

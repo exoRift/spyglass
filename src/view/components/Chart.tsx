@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 import type { Column } from 'knex-schema-inspector/dist/types/column'
-import type { Chart as ChartConfig } from '../../lib/config'
+import { DEFAULT_BARS_COLOR, DEFAULT_TRACE_COLORS, type Chart as ChartConfig } from '../../lib/config'
 
 import { MdDragHandle } from 'react-icons/md'
 
@@ -58,40 +58,37 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
   }
 }
 
-export function Chart ({ chart, tables, canQuery, className, onContextMenu, width, height, onError }: { chart: ChartConfig, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, height?: number, width?: number, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
+export function Chart ({ chart, tables, canQuery, className, onContextMenu, onError }: { chart: ChartConfig, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
   const chartContainer = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.EChartsType>(undefined)
   const isAnimating = useRef(true)
+  const waitingForResize = useRef(false)
 
-  const [waiting, setWaiting] = useState(true)
   const [rows, setRows] = useState<any[]>([])
 
-  const resize = useCallback(() => {
-    function _resize (): void {
-      requestAnimationFrame(() => chartRef.current?.resize())
-
-      chartRef.current?.off('finished', _resize)
+  const waitForAnimationToFinish = useCallback(() => new Promise<void>((_resolve) => {
+    const resolve = (): void => {
+      chartRef.current?.off('finished', resolve)
+      _resolve()
     }
 
-    if (isAnimating.current) chartRef.current?.on('finished', _resize)
-    else _resize()
-  }, [])
+    if (isAnimating.current) chartRef.current?.on('finished', resolve)
+    else _resolve()
+  }), [])
+
+  const resize = useCallback(() => {
+    if (waitingForResize.current) return
+    waitingForResize.current = true
+
+    void waitForAnimationToFinish().then(() => {
+      requestAnimationFrame(() => {
+        chartRef.current?.resize()
+        waitingForResize.current = false
+      })
+    })
+  }, [waitForAnimationToFinish])
 
   useEffect(() => {
-    const aborter = new AbortController()
-
-    const widget = chartContainer.current
-      ?.closest('.dashup-widget')
-
-    widget
-      ?.addEventListener('transitionend', (e) => e.target === widget && setWaiting(false), { once: true, passive: true, signal: aborter.signal })
-
-    return () => aborter.abort()
-  }, [])
-
-  useEffect(() => {
-    if (waiting) return
-
     const theme = {
       backgroundColor: 'var(--color-base-200)',
       textStyle: {
@@ -173,12 +170,9 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
     echarts.connect('dashboard')
 
     const widget = chartContainer.current?.closest('.dashup-widget')
-    widget
-      ?.addEventListener(
-        'transitionend',
-        resize,
-        { passive: true, signal: aborter.signal }
-      )
+
+    const observer = new ResizeObserver(resize)
+    if (widget) observer.observe(widget)
 
     function onFinished (): void {
       isAnimating.current = false
@@ -208,8 +202,9 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
       chartRef.current?.off('showTip', onTipShow)
       chartRef.current?.off('hideTip', onTipHide)
       chartRef.current?.dispose()
+      observer.disconnect()
     }
-  }, [waiting])
+  }, [resize])
 
   useEffect(() => {
     const aborter = new AbortController()
@@ -239,10 +234,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
   }, [canQuery, chart, (+chart - +chart.pos)])
 
   useEffect(() => {
-    if (waiting) return
-
     isAnimating.current = true
-    chartRef.current?.resize()
 
     let isTimeXAxis
     if (tables && chart.table && 'x' in chart.method && chart.method.x) {
@@ -316,25 +308,26 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
           height: '5%',
           labelFormatter: (v, aV) => new Date(aV).toLocaleDateString(undefined, { dateStyle: 'short' })
         }
-        : undefined
+        : undefined,
+      color: DEFAULT_TRACE_COLORS.map((c, i) => chart.traceColors?.[i] ?? c)
     } satisfies echarts.EChartsOption)
-  }, [waiting, rows, tables, chart.table, chart.title, chart.subtitle, chart.method, chart.style])
+  }, [rows, tables, chart.table, chart.title, chart.subtitle, chart.method, chart.style, chart.traceColors, waitForAnimationToFinish])
 
   useEffect(() => {
-    if (waiting) return
+    if (!canQuery) return
 
     isAnimating.current = true
-    chartRef.current?.resize()
 
     const series: echarts.SeriesOption[] = [{
       name: 'Series 1',
       type: chart.style,
       data: chart.style === 'pie'
         ? rows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
-        : rows.map((r) => ({ value: [r.x, parseFloat(r.y)] }))
+        : rows.map((r) => ({ value: [r.x, parseFloat(r.y)] })),
+      universalTransition: true
     }]
 
-    if ((chart.method.type === 'aggregate_avg' && chart.method.bars) || (chart.method.type === 'custom' && rows[0] && 'lowBar' in rows[0] && 'highBar' in rows[0])) {
+    if (chart.style !== 'pie' && ((chart.method.type === 'aggregate_avg' && chart.method.bars) || (chart.method.type === 'custom' && rows[0] && 'lowBar' in rows[0] && 'highBar' in rows[0]))) {
       series.push({
         type: 'custom',
         name: chart.method.type === 'aggregate_avg'
@@ -343,7 +336,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
             : 'Min / Max'
           : 'Error',
         renderItem: errorBoundRender,
-        color: 'var(--color-error)',
+        color: chart.barColor ?? DEFAULT_BARS_COLOR,
         data: rows.map((r) => ({ value: [r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)] })),
         itemStyle: {
           borderWidth: 1.5
@@ -362,13 +355,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, widt
         : { data: rows.map((r) => r.x) },
       series
     }, { replaceMerge: oldLength > series.length ? 'series' : undefined })
-  }, [waiting, chart.style, chart.method, rows])
-
-  useEffect(() => {
-    if (waiting) return
-
-    requestAnimationFrame(resize)
-  }, [width, height])
+  }, [chart.style, chart.method, rows, chart.traceColors, chart.barColor, waitForAnimationToFinish, canQuery])
 
   return (
     <>
