@@ -10,7 +10,7 @@ import { Badge, Button, Form, Input, Modal, Select, Table, Toggle, Tooltip } fro
 import type { Config, Connection } from '../../lib/config'
 
 import logo from '../../assets/logo.png'
-import { MdAdd, MdBuild, MdInfo, MdEdit, MdDelete, MdFileCopy } from 'react-icons/md'
+import { MdAdd, MdBuild, MdInfo, MdEdit, MdDelete, MdFileCopy, MdWarning } from 'react-icons/md'
 import pkg from '../../../package.json' with { type: 'json' }
 import { PasswordInput } from '../components/PasswordInput'
 import { NativeFileInput } from '../components/NativeFileInput'
@@ -444,6 +444,34 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
   )
 }
 
+function ConfigLoadFailureGuard (): React.ReactNode {
+  const [open, setOpen] = useState(Boolean(window._invalidConfigSchemaError))
+
+  return (
+    <Modal.Legacy open={open}>
+      <Modal.Header className='font-bold'>Failed to Load Config</Modal.Header>
+
+      <Modal.Body>
+        <p>A config file was detected but failed to load.</p>
+        <br />
+        <p>You can close the application to prevent data loss or continue anyway</p>
+
+        <code className='block bg-base-300 w-full text-xs mt-2 p-2'>
+          {window._invalidConfigSchemaError}
+        </code>
+      </Modal.Body>
+
+      <Modal.Actions>
+        <Button onClick={() => closeApplication()}>Close Spyglass</Button>
+        <Button color='warning' onClick={() => setOpen(false)}>
+          <MdWarning className='text-xl' />
+          <span>Continue Anyway</span>
+        </Button>
+      </Modal.Actions>
+    </Modal.Legacy>
+  )
+}
+
 export default function Connections ({ navigate, editing }: { navigate: typeof renderRoute, editing?: number }): React.ReactNode {
   const [config] = useObject(_config)
 
@@ -490,6 +518,8 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
         </Table>
 
         <ConnectionCreateButton config={config} />
+
+        <ConfigLoadFailureGuard />
       </div>
     </>
   )

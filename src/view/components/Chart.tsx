@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 import type { Column } from 'knex-schema-inspector/dist/types/column'
-import { DEFAULT_BARS_COLOR, DEFAULT_TRACE_COLORS, type Chart as ChartConfig } from '../../lib/config'
+import { DEFAULT_BARS_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, type Chart as ChartConfig } from '../../lib/config'
 
 import { MdDragHandle } from 'react-icons/md'
 
@@ -229,7 +229,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     if (tables && chart.table && 'x' in chart.method && chart.method.x) {
       const x = chart.method.x
 
-      const column = tables[chart.table]?.find((c) => c.name === x)
+      const column = tables[chart.table]?.find((c) => getColumnIdentifier(c) === x)
       isTimeXAxis = column?.data_type.includes('date') || column?.data_type.includes('time')
     } else isTimeXAxis = !isNaN(+new Date(rows[0]?.x))
 
@@ -307,7 +307,19 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         : undefined,
       color: DEFAULT_TRACE_COLORS.map((c, i) => chart.traceColors?.[i] ?? c)
     } satisfies echarts.EChartsOption)
-  }, [rows, tables, chart.table, chart.title, chart.subtitle, chart.method, chart.style, chart.traceColors, waitForAnimationToFinish])
+  }, [
+    rows,
+    tables,
+    chart.table,
+    chart.title,
+    chart.subtitle,
+    chart.xTitle,
+    chart.yTitle,
+    chart.method,
+    chart.style,
+    chart.traceColors,
+    waitForAnimationToFinish
+  ])
 
   useEffect(() => {
     if (!canQuery) return
@@ -358,7 +370,17 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         : { data: rows.map((r) => r.x) },
       series
     }, { replaceMerge: oldLength > series.length ? 'series' : undefined })
-  }, [chart.style, chart.method, rows, chart.traceColors, chart.barColor, chart.breakdown, waitForAnimationToFinish, canQuery])
+  }, [
+    chart.yTitle,
+    chart.style,
+    chart.method,
+    rows,
+    chart.traceColors,
+    chart.barColor,
+    chart.breakdown,
+    waitForAnimationToFinish,
+    canQuery
+  ])
 
   return (
     <>

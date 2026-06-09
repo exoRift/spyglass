@@ -188,7 +188,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         </Button>
       </header>
 
-      <div className={twMerge('transition duration-700 h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&_.dashup-widget:hover]:!z-30 opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
+      <div className={twMerge('transition duration-700 h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&_.dashup-widget:hover]:!z-30 opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
           <Dash key={dashKey} widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='!transition-none' onChange={updateWidgets} />
           <div className={twMerge('transition fixed min-h-screen inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
@@ -240,7 +240,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
           <Form id='password_form' onSubmit={connect}>
             <div className='fieldset'>
               <Input autoFocus placeholder='Enter Password...' name='password' id='password' type='password' className='w-full' />
-              {passwordError && <label htmlFor='password' className='label text-error'>{passwordError}</label>}
+              {passwordError && <label htmlFor='password' className='label text-error text-wrap'>{passwordError}</label>}
             </div>
           </Form>
         </Modal.Body>

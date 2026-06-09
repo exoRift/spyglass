@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 
-import { DEFAULT_BARS_COLOR as DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, type Chart as ChartConfig } from '../../lib/config'
+import { DEFAULT_BARS_COLOR as DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getColumnNonConflictName, TimeUnit, type Chart as ChartConfig } from '../../lib/config'
 
 import { Button, Divider, Dropdown, Input, Join, Modal, Select, Toggle, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
@@ -144,15 +144,11 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       if (table) columns = columns.concat(table)
     }
 
-    return columns.map((c) => {
-      const identifier = `${c.table}.${c.name}`
-
-      return {
-        ...c,
-        identifier,
-        display_name: columns.some((c2) => c2.name === c.name && c !== c2) ? identifier : c.name
-      }
-    })
+    return columns.map((c) => ({
+      ...c,
+      identifier: getColumnIdentifier(c),
+      display_name: getColumnNonConflictName(c, columns)
+    }))
   }, [tables, editedChart.table, editedChart.joins, +editedChart])
 
   return (
@@ -186,7 +182,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
 
           <div className='flex flex-col gap-4'>
             {editedChart.joins?.map((j, i) => (
-              <div key={j.table}>
+              <div key={j.table} className='transition transition-discrete duration-300 starting:opacity-0 opacity-100'>
                 <div className='flex gap-4 justify-between'>
                   <label className='font-semibold'>{j.table}</label>
 
@@ -306,10 +302,33 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
+
+                    {editedChart.table &&
+                      usableColumns
+                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
+                        ?.data_type.match(/date|time/) && (
+                          <>
+                            <div className='fieldset'>
+                              <label htmlFor='xTimeUnit' className='label'>
+                                <span className='label-text'>X Time Unit</span>
+                              </label>
+                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
+                                <Select.Option value=''>None</Select.Option>
+
+                                {TimeUnit.distribute((member) => {
+                                  const unit = member.expression.slice(1, -1)
+                                  return (
+                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                                  )
+                                })}
+                              </Select>
+                            </div>
+                          </>
+                    )}
                   </div>
 
                   <div className='flex gap-4 *:grow'>
@@ -328,7 +347,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
@@ -354,10 +373,33 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
+
+                    {editedChart.table &&
+                      usableColumns
+                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
+                        ?.data_type.match(/date|time/) && (
+                          <>
+                            <div className='fieldset'>
+                              <label htmlFor='xTimeUnit' className='label'>
+                                <span className='label-text'>X Time Unit</span>
+                              </label>
+                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
+                                <Select.Option value=''>None</Select.Option>
+
+                                {TimeUnit.distribute((member) => {
+                                  const unit = member.expression.slice(1, -1)
+                                  return (
+                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                                  )
+                                })}
+                              </Select>
+                            </div>
+                          </>
+                    )}
                   </div>
 
                   <div className='fieldset w-full'>
@@ -387,10 +429,33 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
+
+                    {editedChart.table &&
+                      usableColumns
+                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
+                        ?.data_type.match(/date|time/) && (
+                          <>
+                            <div className='fieldset'>
+                              <label htmlFor='xTimeUnit' className='label'>
+                                <span className='label-text'>X Time Unit</span>
+                              </label>
+                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
+                                <Select.Option value=''>None</Select.Option>
+
+                                {TimeUnit.distribute((member) => {
+                                  const unit = member.expression.slice(1, -1)
+                                  return (
+                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                                  )
+                                })}
+                              </Select>
+                            </div>
+                          </>
+                    )}
                   </div>
 
                   <div className='flex gap-4 *:grow'>
@@ -409,7 +474,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
@@ -435,10 +500,33 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
+
+                    {editedChart.table &&
+                      usableColumns
+                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
+                        ?.data_type.match(/date|time/) && (
+                          <>
+                            <div className='fieldset'>
+                              <label htmlFor='xTimeUnit' className='label'>
+                                <span className='label-text'>X Time Unit</span>
+                              </label>
+                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
+                                <Select.Option value=''>None</Select.Option>
+
+                                {TimeUnit.distribute((member) => {
+                                  const unit = member.expression.slice(1, -1)
+                                  return (
+                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                                  )
+                                })}
+                              </Select>
+                            </div>
+                          </>
+                    )}
                   </div>
 
                   <div className='flex gap-4 *:grow'>
@@ -457,7 +545,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
@@ -483,10 +571,33 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
+
+                    {editedChart.table &&
+                      usableColumns
+                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
+                        ?.data_type.match(/date|time/) && (
+                          <>
+                            <div className='fieldset'>
+                              <label htmlFor='xTimeUnit' className='label'>
+                                <span className='label-text'>X Time Unit</span>
+                              </label>
+                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
+                                <Select.Option value=''>None</Select.Option>
+
+                                {TimeUnit.distribute((member) => {
+                                  const unit = member.expression.slice(1, -1)
+                                  return (
+                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                                  )
+                                })}
+                              </Select>
+                            </div>
+                          </>
+                    )}
                   </div>
 
                   <div className='flex gap-4 *:grow'>
@@ -505,7 +616,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                         <Select.Option value='' disabled>Choose a column</Select.Option>
 
                         {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
-                          <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                         )))}
                       </Select>
                     </div>
@@ -534,7 +645,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     </label>
                     <Multiselect disabled={!editedChart.table} defaultValue={editedChart.method.columns} onValueChange={(v) => editChart('method.columns', v)} className='w-full' color='ghost' unit='column' id='customColumns' name='customColumns'>
                       {(usableColumns?.map((c) => (
-                        <Multiselect.Option value={c.display_name} key={c.display_name}>{c.display_name.replaceAll('.', '_')}</Multiselect.Option>
+                        <Multiselect.Option value={c.identifier} key={c.identifier}>{c.display_name.replaceAll('.', '_')}</Multiselect.Option>
                       )))}
                     </Multiselect>
                   </div>
@@ -610,7 +721,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             <Select key={editedChart.breakdown} id='breakdown' name='breakdown' defaultValue={editedChart.breakdown ?? ''} onChange={(e) => editChart('breakdown', e.currentTarget.value)}>
               <Select.Option value='' disabled>Choose a column</Select.Option>
 
-              {usableColumns?.map((c) => <Select.Option key={c.identifier} value={c.display_name}>{c.display_name}</Select.Option>)}
+              {usableColumns?.map((c) => <Select.Option key={c.identifier} value={c.identifier}>{c.display_name}</Select.Option>)}
             </Select>
           </div>
         </div>
@@ -637,7 +748,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                   ? <Select.Option value='~aggregation'>Aggregation Value</Select.Option>
                   : null}
                 {(usableColumns?.map((c) => (
-                  <Select.Option value={c.display_name} key={c.display_name}>{c.display_name}</Select.Option>
+                  <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                 )))}
               </Select>
             </div>

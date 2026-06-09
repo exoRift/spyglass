@@ -8,9 +8,10 @@ import open from 'open'
 import vm from 'vm'
 import { openFileManagerDialog } from 'open-file-manager-dialog'
 
-import { type Chart, type Connection, Config } from './lib/config'
+import { type Chart, type Connection, Config, getColumnIdentifier, getColumnNonConflictName } from './lib/config'
 import * as logger from './lib/logger'
 import { changecwd } from './lib/depcache'
+import { dateBucket } from './lib/database'
 import pkg from '../package.json'
 
 const args = util.parseArgs({
@@ -37,12 +38,19 @@ const DRIVERS: Record<Connection['details']['client'], string> = {
   mssql: 'tedious'
 }
 
+const webview = new Webview(process.env.NODE_ENV !== 'production')
+
 function loadConfig (): Promise<Config> {
   return Bun.file(CONFIG_LOCATION, { type: 'json' })
     .json()
     .then((obj) => Config(obj))
     .then((cfg) => {
-      if (cfg instanceof type.errors) throw cfg.toTraversalError()
+      if (cfg instanceof type.errors) {
+        const err = cfg.toTraversalError()
+        webview.init(`window._invalidConfigSchemaError = \`${err.message.replaceAll('`', '\\`')}\``)
+        throw err
+      }
+
       logger.info(`Config loaded; ${cfg.connections.length} connections`)
       return cfg
     })
@@ -53,11 +61,7 @@ function loadConfig (): Promise<Config> {
 }
 
 const config = await loadConfig()
-
 let activeConnection: Knex.Knex | undefined
-
-/** View */
-const webview = new Webview(/* process.env.NODE_ENV !== 'production' */true)
 
 function moduleExists (name: string): Promise<boolean> {
   return Bun.resolve(name, import.meta.dirname)
@@ -227,7 +231,7 @@ const binds = {
         if (chart.method.x && chart.method.y) {
           didSelect = true
           query.select({
-            x: chart.method.x,
+            x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
             y: chart.method.y
           })
         }
@@ -237,10 +241,10 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.x,
+              x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
               y: activeConnection.count(chart.method.x)
             })
-            .groupBy(chart.method.x)
+            .groupBy('x')
         }
         break
       case 'aggregate_count_unique':
@@ -248,10 +252,10 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.x,
+              x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
               y: activeConnection.countDistinct(chart.method.y)
             })
-            .groupBy(chart.method.x)
+            .groupBy('x')
         }
         break
       case 'aggregate_avg':
@@ -259,10 +263,10 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.x,
+              x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
               y: activeConnection.avg(chart.method.y)
             })
-            .groupBy(chart.method.x)
+            .groupBy('x')
 
           switch (chart.method.bars) {
             case 'stddev':
@@ -288,19 +292,35 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.x,
+              x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
               y: activeConnection.sum(chart.method.y)
             })
-            .groupBy(chart.method.x)
+            .groupBy('x')
         }
         break
-      case 'custom':
+      case 'custom': {
         if (chart.method.columns.length) {
+          const tables = await binds.getTables()
+          if (!tables) throw new Error('Unexpected: Querying custom map fn and tables is null')
+
+          const columns = [...tables[chart.table]!]
+          if (chart.joins) {
+            for (const join of chart.joins) columns.push(...tables[join.table]!)
+          }
+
           didSelect = true
           query
-            .select(chart.method.columns.map((c) => activeConnection!.column(c).as(c.replaceAll('.', '_'))))
+            .select(chart.method.columns.map((c) =>
+              activeConnection!
+                .column(c)
+                .as(
+                  getColumnNonConflictName(columns.find((col) => getColumnIdentifier(col) === c)!, columns)
+                    .replaceAll('.', '_')
+                ))
+            )
         }
         break
+      }
     }
 
     if (!didSelect) return null
@@ -367,6 +387,9 @@ const binds = {
         logger.error('Failed to pick a file in selection dialog', err)
         return null
       })
+  },
+  closeApplication () {
+    process.exit(0)
   }
 /* eslint-disable-next-line @typescript-eslint/no-empty-object-type */
 } as const satisfies Record<string, Promise<{} | null> | {} | null>
@@ -379,6 +402,7 @@ type Promisify<T extends (...args: any[]) => any> = (...args: Parameters<T>) => 
 
 /* eslint-disable no-var */
 declare global {
+  var _invalidConfigSchemaError: string | undefined
   var _config: Config
   var logInfo: Promisify<typeof binds.logInfo>
   var logWarn: Promisify<typeof binds.logWarn>
@@ -394,6 +418,7 @@ declare global {
   var getTables: Promisify<typeof binds.getTables>
   var queryRows: Promisify<typeof binds.queryRows>
   var promptFile: Promisify<typeof binds.promptFile>
+  var closeApplication: Promisify<typeof binds.closeApplication>
 }
 /* eslint-enable no-var */
 
@@ -405,19 +430,19 @@ const originalError = console.error
 const originalWarn = console.warn
 const originalDebug = console.debug
 console.info = (...args) => {
-  void logInfo(...args).catch(() => logWarn('Failed to log to INFO))
+  void logInfo(...args).catch(() => logWarn('Failed to log to INFO'))
   originalInfo(...args)
 }
 console.error = (...args) => {
-  void logError(...args).catch(() => logWarn('Failed to log to ERROR))
+  void logError(...args).catch(() => logWarn('Failed to log to ERROR'))
   originalError(...args)
 }
 console.warn = (...args) => {
-  void logWarn(...args).catch(() => logWarn('Failed to log to WARN))
+  void logWarn(...args).catch(() => logWarn('Failed to log to WARN'))
   originalWarn(...args)
 }
 console.debug = (...args) => {
-  void logDebug(...args).catch(() => logWarn('Failed to log to DEBUG))
+  void logDebug(...args).catch(() => logWarn('Failed to log to DEBUG'))
   originalDebug(...args)
 }
 window.addEventListener('error', (e) => { void logError('Webview Runtime Error:', e.message) }, { passive: true })
@@ -466,7 +491,7 @@ if (process.env.NODE_ENV === 'production') {
 
     logger.debug('Vite running on URL:', url)
     if (!url) throw Error('Unexpected: Vite did not return a local address')
-    webview.init('document.addEventListener("keydown", (e) => { if (e.key === ";") { debugger } })')
+    // webview.init('document.addEventListener("keydown", (e) => { if (e.key === ";") { debugger } })')
     webview.navigate(url)
     webview.runNonBlocking(() => process.exit(0))
   }, { once: true })
