@@ -166,7 +166,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         </div>
       </Alert>
 
-      <header className='flex gap-4 items-center bg-base-300 transition-colors duration-300 p-2 px-4'>
+      <header className='flex gap-4 items-center bg-base-300 transition-colors p-2 px-4'>
         <Button
           variant='link'
           className='text-primary px-0'

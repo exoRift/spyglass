@@ -477,7 +477,7 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
 
   return (
     <>
-      <header className='flex gap-4 items-center justify-between bg-base-300 transition-colors duration-300 py-2 px-4'>
+      <header className='flex gap-4 items-center justify-between bg-base-300 transition-colors py-2 px-4'>
         <div className='flex gap-4 items-center'>
           <img src={logo} alt='Spyglass' className='w-16 h-12 object-cover dark:invert dark:hue-rotate-180' />
 
@@ -505,7 +505,7 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
           </Table.Head>
           <Table.Body>
             {config.connections.map((c, i) => (
-              <Table.Row key={c.name} className='transition-colors duration-300 not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connIndex: i })}>
+              <Table.Row key={c.name} className='transition-colors not-[:has(&_button:hover)]:hover:bg-neutral/10 cursor-pointer border-b border-neutral/30' onClick={() => navigate('Dashboard', { connIndex: i })}>
                 <span className='[:has(>&)]:whitespace-nowrap [:has(>&)]:w-[1%]'>{envToBadge(c.environment)}</span>
                 <span className='font-semibold'>{c.name}</span>
                 <span>{c.details.client === 'sqlite' ? 'File' : c.details.username}</span>

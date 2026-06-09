@@ -328,20 +328,23 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
     const series: echarts.SeriesOption[] = []
 
+    const shouldAccumulate = chart.cumulative && chart.style !== 'pie' && chart.method.type !== 'custom'
+
     const grouped = chart.breakdown ? Object.groupBy(rows, (r) => r.group) : { [chart.yTitle]: rows }
     for (const group in grouped) {
       const groupRows = grouped[group]!
 
+      let accumulator = 0
       series.push({
         name: group,
         type: chart.style,
         data: chart.style === 'pie'
           ? groupRows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
-          : groupRows.map((r) => ({ value: [r.x, parseFloat(r.y)] })),
+          : groupRows.map((r) => ({ value: [r.x, shouldAccumulate ? (accumulator += parseFloat(r.y)) : parseFloat(r.y)] })),
         universalTransition: true
       })
 
-      if (chart.style !== 'pie' && ((chart.method.type === 'aggregate_avg' && chart.method.bars) || (chart.method.type === 'custom' && groupRows[0] && 'lowBar' in groupRows[0] && 'highBar' in groupRows[0]))) {
+      if (chart.style !== 'pie' && (!chart.cumulative || chart.method.type === 'custom') && ((chart.method.type === 'aggregate_avg' && chart.method.bars) || (chart.method.type === 'custom' && groupRows[0] && 'lowBar' in groupRows[0] && 'highBar' in groupRows[0]))) {
         series.push({
           type: 'custom',
           name: chart.method.type === 'aggregate_avg'

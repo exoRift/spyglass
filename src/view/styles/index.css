@@ -75,7 +75,7 @@ html, html * {
 
 
 body {
-  @apply transition-colors duration-300 h-screen overflow-x-clip;
+  @apply transition-colors h-screen overflow-x-clip;
   color-scheme: light dark;
 }
 

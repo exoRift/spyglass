@@ -48,6 +48,7 @@ const Chart = type({
     })
   ),
   'breakdown?': 'string | null',
+  'cumulative?': 'true',
   'traceColors?': 'string[]',
   'barColor?': 'string',
   style: '"bar" | "line" | "pie"',

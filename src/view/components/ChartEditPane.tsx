@@ -182,7 +182,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
 
           <div className='flex flex-col gap-4'>
             {editedChart.joins?.map((j, i) => (
-              <div key={j.table} className='transition transition-discrete duration-300 starting:opacity-0 opacity-100'>
+              <div key={j.table} className='transition transition-discrete starting:opacity-0 opacity-100'>
                 <div className='flex gap-4 justify-between'>
                   <label className='font-semibold'>{j.table}</label>
 
@@ -280,7 +280,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         </div>
       </div>
 
-      <div className='space-y-4 border-y border-base-content/50 rounded-sm py-2'>
+      <div className='space-y-2 border-y border-base-content/50 rounded-sm py-2'>
         {(() => {
           switch (editedChart.method.type) {
             case 'value':
@@ -627,7 +627,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                       <label htmlFor='bars' className='label'>
                         <span className='label-text'>Error Bars</span>
                       </label>
-                      <Select defaultValue={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
+                      <Select disabled={Boolean(editedChart.cumulative)} defaultValue={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
                         <Select.Option value=''>None</Select.Option>
                         <Select.Option value='stddev'>Standard Deviation</Select.Option>
                         <Select.Option value='minmax'>Minimum / Maximum</Select.Option>
@@ -669,6 +669,15 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
               )
           }
         })()}
+
+        {editedChart.method.type !== 'custom' && editedChart.style !== 'pie' && (
+          <div className='flex items-center gap-2 fieldset w-full'>
+            <Toggle size='xs' color='primary' defaultChecked={editedChart.cumulative ?? false} onChange={(e) => editChart('cumulative', e.currentTarget.checked || undefined)} name='cumulative' id='cumulative' />
+            <label htmlFor='cumulative' className='label transition [:checked+&]:text-primary'>
+              <span className='label-text'>Cumulative</span>
+            </label>
+          </div>
+        )}
       </div>
 
       <div className='fieldset w-full'>
@@ -695,7 +704,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             </label>
 
             {Array.from({ length: Math.max(editedChart.traceColors?.length ?? 0, DEFAULT_TRACE_COLORS.length) }, (_, i) => (
-              <Tooltip key={i} style={{ transitionDelay: `${i * 40}ms` }} message={`Trace ${i + 1}`} className={twMerge('transition-all duration-300 block transition-discrete opacity-100 starting:opacity-0', editedChart.breakdown === undefined && editedChart.style !== 'pie' && i > 0 && 'hidden opacity-0')}>
+              <Tooltip key={i} style={{ transitionDelay: `${i * 40}ms` }} message={`Trace ${i + 1}`} className={twMerge('transition-all block transition-discrete opacity-100 starting:opacity-0', editedChart.breakdown === undefined && editedChart.style !== 'pie' && i > 0 && 'hidden opacity-0')}>
                 <label style={{ backgroundColor: editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i] }} className='flex justify-center size-4 rounded-full cursor-pointer hover:ring focus-within:ring-2' htmlFor={`traceColors_${i}`}>
                   <input type='color' defaultValue={editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i]} onChange={(e) => { editedChart.traceColors ??= []; editedChart.traceColors[i] = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id={`traceColors_${i}`} name={`traceColors_${i}`} />
                 </label>
@@ -712,8 +721,8 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           </div>
         </div>
 
-        <div className={twMerge('transition-all duration-300 transition-discrete starting:bg-base-300 bg-base-300/0 starting:h-0 h-20', editedChart.breakdown === undefined && 'hidden h-0 overflow-hidden')}>
-          <div className='transition-all duration-300 transition-discrete fieldset starting:scale-75 scale-100'>
+        <div className={twMerge('transition-all transition-discrete starting:bg-base-300 bg-base-300/0 starting:h-0 h-20', editedChart.breakdown === undefined && 'hidden h-0 overflow-hidden')}>
+          <div className='transition-all transition-discrete fieldset starting:scale-75 scale-100'>
             <label className='label' htmlFor='breakdown'>
               <span className='label-text'>Breakdown Column</span>
             </label>
