@@ -6,6 +6,7 @@ import Knex, { type Client } from 'knex'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 import open from 'open'
 import vm from 'vm'
+import os from 'os'
 import { openFileManagerDialog } from 'open-file-manager-dialog'
 
 import { type Chart, type Connection, Config } from './lib/config'
@@ -26,7 +27,7 @@ const args = util.parseArgs({
   allowPositionals: true
 })
 
-const CONFIG_LOCATION = args.values.config ? path.resolve(args.values.config) : path.resolve(process.cwd(), './spyglass.json')
+const CONFIG_LOCATION = args.values.config ? path.resolve(args.values.config) : path.resolve(os.homedir(), './spyglass.json')
 logger.info('Config Location:', CONFIG_LOCATION)
 
 const DRIVERS: Record<Connection['details']['client'], string> = {
@@ -405,7 +406,7 @@ for (const name in binds) {
 }
 
 webview.title = 'Spyglass'
-webview.init(`var _config = ${JSON.stringify(config)}`)
+webview.init(`var _config = ${JSON.stringify(config)}; var _configLocation = ${JSON.stringify(CONFIG_LOCATION)}`)
 webview.init(`
 const originalInfo = console.info
 const originalError = console.error

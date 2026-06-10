@@ -10,6 +10,7 @@ declare global {
   interface Window extends PromisifiedBinds {
     _invalidConfigSchemaError: string | undefined
     _config: Config
+    _configLocation: string
   }
 }
 

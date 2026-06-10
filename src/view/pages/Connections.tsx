@@ -522,6 +522,8 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
 
         <ConfigLoadFailureGuard />
       </div>
+
+      <footer className='text-end text-base-content/50 text-xs pr-1 pb-1'>{`Config Location: ${window._configLocation}`}</footer>
     </>
   )
 }

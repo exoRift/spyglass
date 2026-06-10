@@ -21,6 +21,9 @@ export async function init (): Promise<void> {
       }),
     fetch(`http://localhost:${PORT}/getConfig`)
       .then((res) => res.json())
-      .then((cfg) => { window._config = cfg })
+      .then((cfg) => { window._config = cfg }),
+    fetch(`http://localhost:${PORT}/getConfigLocation`)
+      .then((res) => res.json())
+      .then((loc) => { window._configLocation = loc })
   ])
 }
