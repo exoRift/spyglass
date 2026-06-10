@@ -131,6 +131,9 @@ const binds = {
   getConfig (): Config {
     return config
   },
+  getConfigLocation (): string {
+    return CONFIG_LOCATION
+  },
   // TODO: Assign schema link
   async saveConfig (cfg: Config): Promise<null | type.errors> {
     const parsed = Config(cfg)
@@ -395,34 +398,11 @@ const binds = {
   }
 /* eslint-disable-next-line @typescript-eslint/no-empty-object-type */
 } as const satisfies Record<string, Promise<{} | null> | {} | null>
+export type Binds = typeof binds
 
 for (const name in binds) {
   webview.bind(name, binds[name as keyof typeof binds])
 }
-
-type Promisify<T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>
-
-/* eslint-disable no-var */
-declare global {
-  var _invalidConfigSchemaError: string | undefined
-  var _config: Config
-  var logInfo: Promisify<typeof binds.logInfo>
-  var logWarn: Promisify<typeof binds.logWarn>
-  var logError: Promisify<typeof binds.logError>
-  var logDebug: Promisify<typeof binds.logDebug>
-  var hasDataForge: Promisify<typeof binds.hasDataForge>
-  var installDriver: Promisify<typeof binds.installDriver>
-  var openLink: Promisify<typeof binds.openLink>
-  var getConfig: Promisify<typeof binds.getConfig>
-  var saveConfig: Promisify<typeof binds.saveConfig>
-  var testConnection: Promisify<typeof binds.testConnection>
-  var setActiveConnection: Promisify<typeof binds.setActiveConnection>
-  var getTables: Promisify<typeof binds.getTables>
-  var queryRows: Promisify<typeof binds.queryRows>
-  var promptFile: Promisify<typeof binds.promptFile>
-  var closeApplication: Promisify<typeof binds.closeApplication>
-}
-/* eslint-enable no-var */
 
 webview.title = 'Spyglass'
 webview.init(`var _config = ${JSON.stringify(config)}`)

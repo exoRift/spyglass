@@ -213,7 +213,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       return
     }
 
-    void queryRows(chart as typeof chart & { table: string })
+    void window.queryRows(chart as typeof chart & { table: string })
       .then((r) => {
         if (aborter.signal.aborted) return
 

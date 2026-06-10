@@ -227,7 +227,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
 
     switch (mode) {
       case 'test':
-        void testConnection(obj)
+        void window.testConnection(obj)
           .then(setTestResult)
           .finally(() => setShowTestResultsModal(true))
 
@@ -254,10 +254,10 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
         obj.chartIdIncrementor = 0
         config.connections.push(obj)
 
-        void saveConfig(config)
+        void window.saveConfig(config)
           .then((errs) => {
             if (errs !== null) {
-              void logError(errs)
+              console.error(errs)
               return
             }
 
@@ -332,7 +332,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
 
     switch (mode) {
       case 'test':
-        void testConnection(obj)
+        void window.testConnection(obj)
           .then(setTestResult)
           .finally(() => setShowTestResultsModal(true))
 
@@ -358,10 +358,10 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
         }
         Object.assign(connection, obj)
 
-        void saveConfig(config)
+        void window.saveConfig(config)
           .then((errs) => {
             if (errs !== null) {
-              void logError(errs)
+              console.error(errs)
               return
             }
 
@@ -392,7 +392,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
                 <strong>{connection.name}</strong>
               </h1>
 
-              <Button size='sm' color='neutral' onClick={() => { config.connections.push({ ...connection, name: getCopyName(config, connection.name) }); setShowEditModal(false); void saveConfig(config) }}>
+              <Button size='sm' color='neutral' onClick={() => { config.connections.push({ ...connection, name: getCopyName(config, connection.name) }); setShowEditModal(false); void window.saveConfig(config) }}>
                 <MdFileCopy className='text-base' />
                 Duplicate
               </Button>
@@ -435,7 +435,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
 
             <Modal.Actions>
               <Button type='button' color='neutral' onClick={() => setShowDeleteModal(false)}>No</Button>
-              <Button type='button' color='error' onClick={() => { config.connections.splice(connIndex, 1); void saveConfig(config) }}>Yes</Button>
+              <Button type='button' color='error' onClick={() => { config.connections.splice(connIndex, 1); void window.saveConfig(config) }}>Yes</Button>
             </Modal.Actions>
           </Modal.Legacy>
         </>
@@ -463,7 +463,7 @@ function ConfigLoadFailureGuard (): React.ReactNode {
       </Modal.Body>
 
       <Modal.Actions>
-        <Button onClick={() => closeApplication()}>Close Spyglass</Button>
+        <Button onClick={() => window.closeApplication()}>Close Spyglass</Button>
         <Button color='warning' onClick={() => setOpen(false)}>
           <MdWarning className='text-xl' />
           <span>Continue Anyway</span>
@@ -474,7 +474,7 @@ function ConfigLoadFailureGuard (): React.ReactNode {
 }
 
 export default function Connections ({ navigate, editing }: { navigate: typeof renderRoute, editing?: number }): React.ReactNode {
-  const [config] = useObject(_config)
+  const [config] = useObject(window._config)
 
   return (
     <>
@@ -486,7 +486,7 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
         </div>
 
         <div>
-          <a href={pkg.homepage} target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void openLink(e.currentTarget.href) }}>
+          <a href={pkg.homepage} target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void window.openLink(e.currentTarget.href) }}>
             <img src='https://github.com/favicon.ico' alt='GitHub' className='size-6 dark:invert' />
           </a>
         </div>

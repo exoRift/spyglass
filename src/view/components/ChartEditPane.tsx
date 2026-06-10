@@ -64,7 +64,7 @@ function MapFunctionHelpButton (): React.ReactNode {
                 If <code>x</code> can be interpreted as a date from a string, it will be. <code>y</code> should be a number.
               </p>
               <p>
-                You can optionally install <a className='link' href='https://www.npmjs.com/package/data-forge' target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void openLink(e.currentTarget.href) }}>data-forge</a> and you will automatically be able to use it with the <code>forge</code> variable which is df's default export.
+                You can optionally install <a className='link' href='https://www.npmjs.com/package/data-forge' target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void window.openLink(e.currentTarget.href) }}>data-forge</a> and you will automatically be able to use it with the <code>forge</code> variable which is df's default export.
               </p>
               <p>
                 The <code>log</code> function will log your contents to the Spyglass console (run Spyglass from a command line to access)
@@ -84,7 +84,7 @@ function MapFunctionHelpButton (): React.ReactNode {
 }
 
 export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial<Record<string, Column[]>> | null, editedChart: ChartConfig, error?: Error }): React.ReactNode {
-  const { result: isForgeInstalled = true } = usePromise(() => () => hasDataForge(), [])
+  const { result: isForgeInstalled = true } = usePromise(() => () => window.hasDataForge(), [])
 
   const editChart = useCallback(<T extends FlattenObjectKeys<ChartConfig>> (field: T, value: NestedAccess<ChartConfig, T>): void => {
     if (typeof value === 'string') {

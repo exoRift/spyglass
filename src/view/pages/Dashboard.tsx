@@ -14,7 +14,7 @@ import { MdArrowLeft, MdCable, MdDelete, MdFileCopy, MdSave, MdWarning } from 'r
 import 'dashup/style.css'
 
 export default function Dashboard ({ navigate, connIndex }: { navigate: typeof renderRoute, connIndex: number }): React.ReactNode {
-  const [config, setConfig] = useObject(_config)
+  const [config, setConfig] = useObject(window._config)
   const connection = config.connections[connIndex]!
 
   const {
@@ -109,15 +109,15 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
   }, [connection])
 
   const save = useCallback(() => {
-    void saveConfig(config)
+    void window.saveConfig(config)
       .then(() => setIsUnsaved(false))
   }, [config])
 
   const restoreConfig = useCallback(() => {
-    void getConfig()
+    void window.getConfig()
       .then((cfg) => {
-        _config = cfg
-        setConfig(_config)
+        window._config = cfg
+        setConfig(window._config)
       })
       .then(() => setIsUnsaved(null))
   }, [setConfig])
@@ -128,7 +128,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
     const pw = (data.get('password') as string | null) ?? ''
 
     setPasswordError(undefined)
-    void testConnection({
+    void window.testConnection({
       ...connection.details,
       password: pw
     })
@@ -140,8 +140,8 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
 
   useEffect(() => {
     if (connection.details.client === 'sqlite' || connection.details.password !== undefined || password !== undefined) {
-      void setActiveConnection(connIndex, password)
-        .then(getTables)
+      void window.setActiveConnection(connIndex, password)
+        .then(window.getTables)
         .then(setTables)
         .then(() => setConnected(true))
     }
@@ -161,7 +161,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       <Alert className={twMerge('transition fixed left-2 bottom-2 translate-y-4 opacity-0 z-50 pointer-events-none', tables === null && 'opacity-100 translate-y-0 pointer-events-auto')} icon={<MdWarning className='text-warning text-lg' />}>
         <div className='flex items-center gap-2'>
           <span>Spyglass cannot connect to the database.</span>
-          <Button variant='link' size='sm' className='p-0' onClick={() => { void setActiveConnection(-1); navigate('Connections', { editing: connIndex }) }}>Edit Connection</Button>
+          <Button variant='link' size='sm' className='p-0' onClick={() => { void window.setActiveConnection(-1); navigate('Connections', { editing: connIndex }) }}>Edit Connection</Button>
         </div>
       </Alert>
 
@@ -172,7 +172,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
           onClick={() => {
             if (isUnsaved) promptUnsaved()
             else {
-              void setActiveConnection(-1)
+              void window.setActiveConnection(-1)
               navigate('Connections', {})
             }
           }}
