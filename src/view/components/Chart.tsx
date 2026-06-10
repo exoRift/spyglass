@@ -4,7 +4,7 @@ import type { Column } from 'knex-schema-inspector/dist/types/column'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
-import type { Chart as ChartConfig } from '../../lib/config'
+import type { Chart as ChartConfig, ValueUnit } from '../../lib/config'
 import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getWeekdayName } from '../../lib/constants'
 
 import { MdDragHandle } from 'react-icons/md'
@@ -56,6 +56,36 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
         style: lineStyle
       }
     ]
+  }
+}
+
+const CURRENCY_BY_REGION: Record<string, string> = {
+  US: 'USD',
+  CA: 'CAD',
+  GB: 'GBP',
+  DE: 'EUR'
+}
+
+const CurrencyFormatter = Intl.NumberFormat(undefined, {
+  style: 'currency',
+  currency: CURRENCY_BY_REGION[new Intl.Locale(navigator.language).region ?? 'US'] ?? 'USD'
+})
+const PercentageFormatter = Intl.NumberFormat(undefined, {
+  style: 'percent'
+})
+
+function formatValue (value: string | number, unit: ValueUnit | undefined): string {
+  if (typeof value === 'string') {
+    const number = parseFloat(value)
+    if (isNaN(number)) return value
+
+    value = number
+  }
+
+  switch (unit) {
+    case 'currency': return CurrencyFormatter.format(value)
+    case 'percentage': return PercentageFormatter.format(value)
+    default: return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
   }
 }
 
@@ -260,21 +290,21 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
           ? (params: any) => {
             return `
               ${params.marker}
-              ${params.name}<br/>
-              <strong>${params.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
+              ${isTimeXAxis ? params.name : formatValue(params.name, chart.xUnit)}<br/>
+              <strong>${formatValue(params.value, chart.yUnit)}</strong>
               (<strong>${params.percent}%</strong>)
             `
           }
           : (params: any) => {
             return `
-              ${params[0].axisType.includes('time') ? new Date(params[0].axisValue).toLocaleString() : params[0].axisValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              ${params[0].axisType.includes('time') ? new Date(params[0].axisValue).toLocaleString() : formatValue(params[0].axisValue, chart.xUnit)}
               <br/>
               ${params
                 .map((p: any) => `${p.marker} ${p.seriesName} <strong style="marginLeft:'auto';">${p.seriesType === 'custom'
                   ? p.seriesName === 'Std. Dev.'
-                    ? (p.value[1] - p.value[2]).toLocaleString(undefined, { maximumFractionDigits: 2 })
-                    : `${p.value[2].toLocaleString(undefined, { maximumFractionDigits: 2 })} / ${p.value[3].toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                  : p.value[1].toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>`)
+                    ? formatValue(p.value[1] - p.value[2], chart.yUnit)
+                    : `${formatValue(p.value[2], chart.yUnit)} / ${formatValue(p.value[3], chart.yUnit)}`
+                  : formatValue(p.value[1], chart.yUnit)}</strong>`)
                 .join('<br/>')}
             `
           }
@@ -287,23 +317,29 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         bottom: figuredType === 'time' ? 105 : 75
       },
       xAxis: {
+        type: figuredType,
+        show: chart.style !== 'pie',
         name: !canQuery || !chart.table || chart.style === 'pie' ? undefined : chart.xTitle,
         nameLocation: 'center',
         nameGap: 30,
         nameTextStyle: {
           fontWeight: 'bold'
         },
-        type: figuredType,
         axisLabel: {
-          hideOverlap: true
+          hideOverlap: true,
+          formatter: isTimeXAxis ? undefined : (v: string | number) => formatValue(v, chart.xUnit)
         }
       },
       yAxis: {
         type: 'value',
+        show: chart.style !== 'pie',
         name: !canQuery || !chart.table ? undefined : chart.yTitle,
         nameLocation: 'center',
         nameTextStyle: {
           fontWeight: 'bold'
+        },
+        axisLabel: {
+          formatter: (v: string | number) => formatValue(v, chart.yUnit)
         }
       },
       dataZoom: {
@@ -328,7 +364,9 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chart.yTitle,
     chart.method,
     chart.style,
-    chart.traceColors
+    chart.traceColors,
+    chart.xUnit,
+    chart.yUnit
   ])
 
   useEffect(() => {
@@ -378,12 +416,53 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
     const oldLength = (chartRef.current?.getOption() as any)?.series?.length ?? 0
 
+    function getPieTotalString (selected?: Record<string, boolean>): string {
+      selected ??= (chartRef.current?.getOption().legend as any)?.selected ?? {}
+
+      const allSelected = !Object.keys(selected).length
+
+      return `{label|Total:} {value|${formatValue(rows.reduce((a, r) => allSelected || selected?.[r.x] ? a + parseFloat(r.y) : a, 0), chart.yUnit)}}`
+    }
+
     chartRef.current?.setOption({
       xAxis: chart.style === 'pie'
         ? undefined
         : { data: isWeekdayXAxis ? Array.from({ length: 7 }, (_, i) => getWeekdayName(i)) : rows.map((r) => r.x) },
-      series
+      series,
+      graphic: chart.style === 'pie'
+        ? {
+          type: 'text',
+          left: 10,
+          top: 40,
+          style: {
+            text: getPieTotalString(),
+            rich: {
+              value: {
+                fontWeight: 'bold'
+              }
+            },
+            fill: 'var(--color-base-content)',
+            fontSize: 10
+          }
+        }
+        : undefined
     }, { replaceMerge: oldLength > series.length ? 'series' : undefined })
+
+    if (chart.style === 'pie') {
+      function updatePieTotal (params: any): void {
+        chartRef.current?.setOption({
+          graphic: {
+            style: {
+              text: getPieTotalString(params.selected)
+            }
+          }
+        })
+      }
+
+      chartRef.current?.on('legendselectchanged', updatePieTotal)
+
+      return () => { chartRef.current?.off('legendselectchanged', updatePieTotal) }
+    }
   }, [
     chart.yTitle,
     chart.style,
@@ -393,6 +472,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chart.barColor,
     chart.breakdown,
     chart.cumulative,
+    chart.yUnit,
     canQuery
   ])
 

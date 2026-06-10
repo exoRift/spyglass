@@ -11,6 +11,7 @@ const Join = type({
 
 const TimeUnit = type.enumerated(...TIME_UNITS)
 const ValueUnit = type('"currency" | "percentage"')
+export type ValueUnit = typeof ValueUnit.infer
 
 const Chart = type({
   id: 'number',

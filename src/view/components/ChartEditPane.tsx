@@ -109,6 +109,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
     if (field === 'style' && value === 'pie') {
       editedChart.breakdown = undefined
       if ('bars' in editedChart.method) editedChart.method.bars = null
+      if (editedChart.yUnit === 'percentage') editedChart.yUnit = undefined
     }
 
     if (field === 'method.type') {
@@ -400,7 +401,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     <Select value={editedChart.yUnit ?? ''} onChange={(e) => editChart('yUnit', e.currentTarget.value as typeof editedChart.yUnit || undefined)} className='w-full' id='yUnit' name='yUnit'>
                       <Select.Option value=''>Auto</Select.Option>
                       <Select.Option value='currency'>Currency</Select.Option>
-                      <Select.Option value='percentage'>Percentage</Select.Option>
+                      <Select.Option value='percentage' disabled={editedChart.style === 'pie'}>Percentage</Select.Option>
                     </Select>
                   </div>
                 )}
