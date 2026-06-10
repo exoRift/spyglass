@@ -40,13 +40,21 @@ export function dateBucket (
         return knex.raw('DAYOFWEEK(??) - 1', [column])
       }
 
+      if (unit === 'week') {
+        return knex.raw(
+          'STR_TO_DATE(DATE_FORMAT(DATE_SUB(??, INTERVAL (DAYOFWEEK(??) - 1) DAY), ?), \'%Y-%m-%d %H:%i:%s\')',
+          [column, column, '%Y-%m-%d 00:00:00']
+        )
+      }
+
       const formats = {
         year: '%Y-01-01 00:00:00',
         month: '%Y-%m-01 00:00:00',
         day: '%Y-%m-%d 00:00:00',
         hour: '%Y-%m-%d %H:00:00',
         minute: '%Y-%m-%d %H:%i:00',
-        second: '%Y-%m-%d %H:%i:%s'
+        second: '%Y-%m-%d %H:%i:%s',
+        week: '%Y-%m-%d 00:00:00'
       } satisfies Record<Exclude<typeof TimeUnit.infer, 'weekday'>, string>
 
       return knex.raw(
@@ -65,6 +73,12 @@ export function dateBucket (
       }
 
       switch (unit) {
+        case 'week':
+          return knex.raw(
+            'DATEADD(day, -((DATEPART(WEEKDAY, ?) + @@DATEFIRST - 2) % 7), DATEADD(day, DATEDIFF(day, 0, ?), 0))',
+            [column, column]
+          )
+
         case 'year':
           return knex.raw(
             'DATEFROMPARTS(YEAR(?), 1, 1)',
@@ -114,6 +128,9 @@ export function dateBucket (
       }
 
       switch (unit) {
+        case 'week':
+          return knex.raw("TRUNC(??, 'IW')", [column])
+
         case 'year':
           return knex.raw("TRUNC(??, 'YEAR')", [column])
 
@@ -154,13 +171,21 @@ export function dateBucket (
       return knex.raw('CAST(strftime(\'%w\', ??) AS INTEGER)', [column])
     }
 
+    if (unit === 'week') {
+      return knex.raw(
+        "datetime(date(??, '-' || strftime('%w', ??) || ' days'))",
+        [column, column]
+      )
+    }
+
     const formats = {
       year: '%Y-01-01 00:00:00',
       month: '%Y-%m-01 00:00:00',
       day: '%Y-%m-%d 00:00:00',
       hour: '%Y-%m-%d %H:00:00',
       minute: '%Y-%m-%d %H:%M:00',
-      second: '%Y-%m-%d %H:%M:%S'
+      second: '%Y-%m-%d %H:%M:%S',
+      week: '%Y-%m-%d 00:00:00'
     } satisfies Record<Exclude<typeof TimeUnit.infer, 'weekday'>, string>
 
     return knex.raw(

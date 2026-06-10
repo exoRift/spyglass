@@ -1,10 +1,11 @@
 import * as echarts from 'echarts'
+import type { Column } from 'knex-schema-inspector/dist/types/column'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
-import type { Column } from 'knex-schema-inspector/dist/types/column'
-import { DEFAULT_BARS_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, type Chart as ChartConfig } from '../../lib/config'
+import type { Chart as ChartConfig } from '../../lib/config'
+import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getWeekdayName } from '../../lib/constants'
 
 import { MdDragHandle } from 'react-icons/md'
 
@@ -226,7 +227,8 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     isAnimating.current = true
 
     let isTimeXAxis
-    if (tables && chart.table && 'x' in chart.method && chart.method.x) {
+    if ('xTimeUnit' in chart.method && chart.method.xTimeUnit === 'weekday') isTimeXAxis = false
+    else if (tables && chart.table && 'x' in chart.method && chart.method.x) {
       const x = chart.method.x
 
       const column = tables[chart.table]?.find((c) => getColumnIdentifier(c) === x)
@@ -295,16 +297,15 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         },
         name: chart.yTitle
       },
-      dataZoom: figuredType === 'time' && chart.style !== 'pie'
-        ? {
-          type: 'slider',
-          xAxisIndex: [0],
-          filterMode: 'filter',
-          bottom: 38,
-          height: '5%',
-          labelFormatter: (v, aV) => new Date(aV).toLocaleDateString(undefined, { dateStyle: 'short' })
-        }
-        : undefined,
+      dataZoom: {
+        show: figuredType === 'time' && chart.style !== 'pie',
+        type: 'slider',
+        xAxisIndex: [0],
+        filterMode: 'filter',
+        bottom: 38,
+        height: '5%',
+        labelFormatter: (v, aV) => new Date(aV).toLocaleDateString(undefined, { dateStyle: 'short' })
+      },
       color: DEFAULT_TRACE_COLORS.map((c, i) => chart.traceColors?.[i] ?? c)
     } satisfies echarts.EChartsOption)
   }, [
@@ -330,6 +331,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
     const shouldAccumulate = chart.cumulative && chart.style !== 'pie' && chart.method.type !== 'custom'
 
+    const isWeekdayXAxis = 'xTimeUnit' in chart.method && chart.method.xTimeUnit === 'weekday'
     const grouped = chart.breakdown ? Object.groupBy(rows, (r) => r.group) : { [chart.yTitle]: rows }
     for (const group in grouped) {
       const groupRows = grouped[group]!
@@ -339,8 +341,8 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         name: group,
         type: chart.style,
         data: chart.style === 'pie'
-          ? groupRows.map((r) => ({ name: r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
-          : groupRows.map((r) => ({ value: [r.x, shouldAccumulate ? (accumulator += parseFloat(r.y)) : parseFloat(r.y)] })),
+          ? groupRows.map((r) => ({ name: isWeekdayXAxis ? getWeekdayName(r.x) : r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
+          : groupRows.map((r) => ({ value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, shouldAccumulate ? (accumulator += parseFloat(r.y)) : parseFloat(r.y)] })),
         universalTransition: true
       })
 
@@ -353,8 +355,8 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
               : 'Min / Max'
             : 'Error',
           renderItem: errorBoundRender,
-          color: chart.barColor ?? DEFAULT_BARS_COLOR,
-          data: groupRows.map((r) => ({ value: [r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)] })),
+          color: chart.barColor ?? DEFAULT_BAR_COLOR,
+          data: groupRows.map((r) => ({ value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)] })),
           itemStyle: {
             borderWidth: 1.5
           },
@@ -370,7 +372,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chartRef.current?.setOption({
       xAxis: chart.style === 'pie'
         ? undefined
-        : { data: rows.map((r) => r.x) },
+        : { data: isWeekdayXAxis ? Array.from({ length: 7 }, (_, i) => getWeekdayName(i)) : rows.map((r) => r.x) },
       series
     }, { replaceMerge: oldLength > series.length ? 'series' : undefined })
   }, [
@@ -381,6 +383,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chart.traceColors,
     chart.barColor,
     chart.breakdown,
+    chart.cumulative,
     waitForAnimationToFinish,
     canQuery
   ])

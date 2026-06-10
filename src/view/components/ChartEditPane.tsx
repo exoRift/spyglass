@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 
-import { DEFAULT_BARS_COLOR as DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getColumnNonConflictName, TimeUnit, type Chart as ChartConfig } from '../../lib/config'
+import type { TimeUnit, Chart as ChartConfig } from '../../lib/config'
+import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getColumnNonConflictName, TIME_UNITS } from '../../lib/constants'
 
 import { Button, Divider, Dropdown, Input, Join, Modal, Select, Toggle, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
@@ -12,7 +13,7 @@ import { Multiselect } from '../components/Multiselect'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 
-import { MdDelete, MdHelp, MdArrowUpward, MdAdd } from 'react-icons/md'
+import { MdDelete, MdHelp, MdArrowUpward, MdAdd, MdSettings } from 'react-icons/md'
 
 type Widen<T> = {
   [K in keyof T]: T[K] extends string ? string : T[K];
@@ -152,7 +153,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
   }, [tables, editedChart.table, editedChart.joins, +editedChart])
 
   return (
-    <>
+    <Fragment key={editedChart.method.type + editedChart.style}>
       <div className='fieldset w-full'>
         <label htmlFor='title' className='label'>
           <span className='label-text'>Title</span>
@@ -254,7 +255,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       </div>
 
       <div className='flex gap-4 *:grow'>
-        <div className='fieldset w-full'>
+        <div className='fieldset'>
           <label htmlFor='method' className='label'>
             <span className='label-text'>Datapoint Method</span>
           </label>
@@ -268,7 +269,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           </Select>
         </div>
 
-        <div className='fieldset w-full'>
+        <div className='fieldset w-fit'>
           <label htmlFor='type' className='label'>
             <span className='label-text'>Chart Style</span>
           </label>
@@ -281,394 +282,136 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       </div>
 
       <div className='space-y-2 border-y border-base-content/50 rounded-sm py-2'>
-        {(() => {
-          switch (editedChart.method.type) {
-            case 'value':
-              return (
-                <Fragment key='method'>
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='xTitle' className='label'>
-                        <span className='label-text'>X Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
-                    </div>
+        {editedChart.method.type !== 'custom' && (
+          <section className='space-y-1'>
+            <div className='flex gap-4 *:grow'>
+              <div className='fieldset w-full'>
+                <label htmlFor='xTitle' className='label'>
+                  <span className='label-text'>X Axis Title</span>
+                </label>
+                <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
+              </div>
 
-                    <div className='fieldset w-full'>
-                      <label htmlFor='table' className='label'>
-                        <span className='label-text'>X Axis Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
+              <div className='fieldset w-full'>
+                <label htmlFor='table' className='label'>
+                  <span className='label-text'>{editedChart.method.type.includes('aggregate') ? 'X Axis Grouping Column' : 'X Axis Column'}</span>
+                </label>
+                <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
+                  <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                        {(usableColumns?.map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
+                  {(usableColumns?.map((c) => (
+                    <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
+                  )))}
+                </Select>
+              </div>
 
-                    {editedChart.table &&
-                      usableColumns
-                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
-                        ?.data_type.match(/date|time/) && (
-                          <>
-                            <div className='fieldset'>
-                              <label htmlFor='xTimeUnit' className='label'>
-                                <span className='label-text'>X Time Unit</span>
-                              </label>
-                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
-                                <Select.Option value=''>None</Select.Option>
+              <div className='fieldset'>
+                <label className='label invisible'>
+                  <span className='label-text'>S</span>
+                </label>
 
-                                {TimeUnit.distribute((member) => {
-                                  const unit = member.expression.slice(1, -1)
-                                  return (
-                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
-                                  )
-                                })}
-                              </Select>
-                            </div>
-                          </>
-                    )}
-                  </div>
+                <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='group cursor-pointer flex items-center h-10 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary'>
+                  <MdSettings className='text-2xl transition group-hover:rotate-45' />
+                </button>
+              </div>
+            </div>
+            <details id='xSettings' className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+              <summary className='hidden' />
 
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='yTitle' className='label'>
-                        <span className='label-text'>Y Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
-                    </div>
+              <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
+                {editedChart.table &&
+                  usableColumns
+                    ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
+                    ?.data_type.match(/date|time/) && (
+                      <>
+                        <div className='fieldset w-full'>
+                          <label htmlFor='xTimeUnit' className='label'>
+                            <span className='label-text'>X Time Unit</span>
+                          </label>
+                          <Select defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
+                            <Select.Option value=''>None</Select.Option>
 
-                    <div className='fieldset w-full'>
-                      <label htmlFor='yColumn' className='label'>
-                        <span className='label-text'>Y Axis Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
+                            {TIME_UNITS.map((unit) => (
+                              <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                            ))}
+                          </Select>
+                        </div>
+                      </>
+                )}
+              </div>
+            </details>
+          </section>
+        )}
 
-                        {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
-                  </div>
-                </Fragment>
-              )
-            case 'aggregate_count':
-              return (
-                <Fragment key='method'>
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='xTitle' className='label'>
-                        <span className='label-text'>X Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
-                    </div>
+        {(editedChart.method.type !== 'aggregate_count' && editedChart.method.type !== 'custom') && (
+          <section className='space-y-1'>
+            <div className='flex gap-4 *:grow'>
+              <div className='fieldset w-full'>
+                <label htmlFor='yTitle' className='label'>
+                  <span className='label-text'>Y Axis Title</span>
+                </label>
+                <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
+              </div>
 
-                    <div className='fieldset w-full'>
-                      <label htmlFor='table' className='label'>
-                        <span className='label-text'>X Axis Grouping Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
+              <div className='fieldset w-full'>
+                <label htmlFor='yColumn' className='label'>
+                  <span className='label-text'>Y Axis Column</span>
+                </label>
+                <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
+                  <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                        {(usableColumns?.map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
+                  {(editedChart.method.type === 'aggregate_count_unique' ? usableColumns : usableColumns?.filter((c) => c.numeric_precision !== null))?.map((c) => (
+                    <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          </section>
+        )}
 
-                    {editedChart.table &&
-                      usableColumns
-                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
-                        ?.data_type.match(/date|time/) && (
-                          <>
-                            <div className='fieldset'>
-                              <label htmlFor='xTimeUnit' className='label'>
-                                <span className='label-text'>X Time Unit</span>
-                              </label>
-                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
-                                <Select.Option value=''>None</Select.Option>
+        {editedChart.method.type === 'aggregate_avg' && editedChart.style !== 'pie' && (
+          <div className='fieldset w-full'>
+            <label htmlFor='bars' className='label'>
+              <span className='label-text'>Error Bars</span>
+            </label>
+            <Select disabled={Boolean(editedChart.cumulative)} defaultValue={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
+              <Select.Option value=''>None</Select.Option>
+              <Select.Option value='stddev'>Standard Deviation</Select.Option>
+              <Select.Option value='minmax'>Minimum / Maximum</Select.Option>
+            </Select>
+          </div>
+        )}
 
-                                {TimeUnit.distribute((member) => {
-                                  const unit = member.expression.slice(1, -1)
-                                  return (
-                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
-                                  )
-                                })}
-                              </Select>
-                            </div>
-                          </>
-                    )}
-                  </div>
+        {editedChart.method.type === 'custom' && (
+          <>
+            <div className='fieldset'>
+              <label htmlFor='customColumns' className='label'>
+                <span className='label-text'>Columns to Query</span>
+              </label>
+              <Multiselect disabled={!editedChart.table} defaultValue={editedChart.method.columns} onValueChange={(v) => editChart('method.columns', v)} className='w-full' color='ghost' unit='column' id='customColumns' name='customColumns'>
+                {(usableColumns?.map((c) => (
+                  <Multiselect.Option value={c.identifier} key={c.identifier}>{c.display_name.replaceAll('.', '_')}</Multiselect.Option>
+                )))}
+              </Multiselect>
+            </div>
 
-                  <div className='fieldset w-full'>
-                    <label htmlFor='yTitle' className='label'>
-                      <span className='label-text'>Y Axis Title</span>
-                    </label>
-                    <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
-                  </div>
-                </Fragment>
-              )
-            case 'aggregate_count_unique':
-              return (
-                <Fragment key='method'>
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='xTitle' className='label'>
-                        <span className='label-text'>X Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
-                    </div>
-
-                    <div className='fieldset w-full'>
-                      <label htmlFor='table' className='label'>
-                        <span className='label-text'>X Axis Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
-
-                        {(usableColumns?.map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
-
-                    {editedChart.table &&
-                      usableColumns
-                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
-                        ?.data_type.match(/date|time/) && (
-                          <>
-                            <div className='fieldset'>
-                              <label htmlFor='xTimeUnit' className='label'>
-                                <span className='label-text'>X Time Unit</span>
-                              </label>
-                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
-                                <Select.Option value=''>None</Select.Option>
-
-                                {TimeUnit.distribute((member) => {
-                                  const unit = member.expression.slice(1, -1)
-                                  return (
-                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
-                                  )
-                                })}
-                              </Select>
-                            </div>
-                          </>
-                    )}
-                  </div>
-
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='yTitle' className='label'>
-                        <span className='label-text'>Y Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
-                    </div>
-
-                    <div className='fieldset w-full'>
-                      <label htmlFor='yColumn' className='label'>
-                        <span className='label-text'>Y Axis Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
-
-                        {(usableColumns?.map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
-                  </div>
-                </Fragment>
-              )
-            case 'aggregate_sum':
-              return (
-                <Fragment key='method'>
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='xTitle' className='label'>
-                        <span className='label-text'>X Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
-                    </div>
-
-                    <div className='fieldset w-full'>
-                      <label htmlFor='table' className='label'>
-                        <span className='label-text'>X Axis Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
-
-                        {(usableColumns?.map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
-
-                    {editedChart.table &&
-                      usableColumns
-                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
-                        ?.data_type.match(/date|time/) && (
-                          <>
-                            <div className='fieldset'>
-                              <label htmlFor='xTimeUnit' className='label'>
-                                <span className='label-text'>X Time Unit</span>
-                              </label>
-                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
-                                <Select.Option value=''>None</Select.Option>
-
-                                {TimeUnit.distribute((member) => {
-                                  const unit = member.expression.slice(1, -1)
-                                  return (
-                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
-                                  )
-                                })}
-                              </Select>
-                            </div>
-                          </>
-                    )}
-                  </div>
-
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='yTitle' className='label'>
-                        <span className='label-text'>Y Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
-                    </div>
-
-                    <div className='fieldset w-full'>
-                      <label htmlFor='yColumn' className='label'>
-                        <span className='label-text'>Y Axis Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
-
-                        {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
-                  </div>
-                </Fragment>
-              )
-            case 'aggregate_avg':
-              return (
-                <Fragment key='method'>
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='xTitle' className='label'>
-                        <span className='label-text'>X Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
-                    </div>
-
-                    <div className='fieldset w-full'>
-                      <label htmlFor='table' className='label'>
-                        <span className='label-text'>X Axis Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
-
-                        {(usableColumns?.map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
-
-                    {editedChart.table &&
-                      usableColumns
-                        ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
-                        ?.data_type.match(/date|time/) && (
-                          <>
-                            <div className='fieldset'>
-                              <label htmlFor='xTimeUnit' className='label'>
-                                <span className='label-text'>X Time Unit</span>
-                              </label>
-                              <Select className='w-fit' defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
-                                <Select.Option value=''>None</Select.Option>
-
-                                {TimeUnit.distribute((member) => {
-                                  const unit = member.expression.slice(1, -1)
-                                  return (
-                                    <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
-                                  )
-                                })}
-                              </Select>
-                            </div>
-                          </>
-                    )}
-                  </div>
-
-                  <div className='flex gap-4 *:grow'>
-                    <div className='fieldset w-full'>
-                      <label htmlFor='yTitle' className='label'>
-                        <span className='label-text'>Y Axis Title</span>
-                      </label>
-                      <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
-                    </div>
-
-                    <div className='fieldset w-full'>
-                      <label htmlFor='yColumn' className='label'>
-                        <span className='label-text'>Y Axis Column</span>
-                      </label>
-                      <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
-                        <Select.Option value='' disabled>Choose a column</Select.Option>
-
-                        {(usableColumns?.filter((c) => c.numeric_precision !== null).map((c) => (
-                          <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                        )))}
-                      </Select>
-                    </div>
-                  </div>
-
-                  {editedChart.style !== 'pie' && (
-                    <div className='fieldset w-full'>
-                      <label htmlFor='bars' className='label'>
-                        <span className='label-text'>Error Bars</span>
-                      </label>
-                      <Select disabled={Boolean(editedChart.cumulative)} defaultValue={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
-                        <Select.Option value=''>None</Select.Option>
-                        <Select.Option value='stddev'>Standard Deviation</Select.Option>
-                        <Select.Option value='minmax'>Minimum / Maximum</Select.Option>
-                      </Select>
-                    </div>
-                  )}
-                </Fragment>
-              )
-            case 'custom':
-              return (
-                <Fragment key='method'>
-                  <div className='fieldset'>
-                    <label htmlFor='customColumns' className='label'>
-                      <span className='label-text'>Columns to Query</span>
-                    </label>
-                    <Multiselect disabled={!editedChart.table} defaultValue={editedChart.method.columns} onValueChange={(v) => editChart('method.columns', v)} className='w-full' color='ghost' unit='column' id='customColumns' name='customColumns'>
-                      {(usableColumns?.map((c) => (
-                        <Multiselect.Option value={c.identifier} key={c.identifier}>{c.display_name.replaceAll('.', '_')}</Multiselect.Option>
-                      )))}
-                    </Multiselect>
-                  </div>
-
-                  <div className='fieldset'>
-                    <label htmlFor='mapFn' className='label'>
-                      <span className='label-text'>Map Function</span>
-                      <MapFunctionHelpButton />
-                    </label>
-                    <DebouncedInput theme={matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'} extensions={[javascript(), EditorView.lineWrapping]} delay={500} className='font-mono text-wrap' Comp={CodeMirror} id='mapFn' placeholder='JS Code...' value={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
-                    {!isForgeInstalled && (
-                      <Button size='xs' color='neutral' onClick={() => (document.getElementById('forge-modal') as HTMLDialogElement).showModal()}>Install DataForge (optional)</Button>
-                    )}
-                    {error && (
-                      <label className='label' htmlFor='mapFn'>
-                        <span className='label-text text-error text-wrap'>{error.message}</span>
-                      </label>
-                    )}
-                  </div>
-                </Fragment>
-              )
-          }
-        })()}
+            <div className='fieldset'>
+              <label htmlFor='mapFn' className='label'>
+                <span className='label-text'>Map Function</span>
+                <MapFunctionHelpButton />
+              </label>
+              <DebouncedInput theme={matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'} extensions={[javascript(), EditorView.lineWrapping]} delay={500} className='font-mono text-wrap' Comp={CodeMirror} id='mapFn' placeholder='JS Code...' value={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
+              {!isForgeInstalled && (
+                <Button size='xs' color='neutral' onClick={() => (document.getElementById('forge-modal') as HTMLDialogElement).showModal()}>Install DataForge (optional)</Button>
+              )}
+              {error && (
+                <label className='label' htmlFor='mapFn'>
+                  <span className='label-text text-error text-wrap'>{error.message}</span>
+                </label>
+              )}
+            </div>
+          </>
+        )}
 
         {editedChart.method.type !== 'custom' && editedChart.style !== 'pie' && (
           <div className='flex items-center gap-2 fieldset w-full'>
@@ -688,7 +431,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       </div>
 
       <div className='fieldset w-full'>
-        <div className={twMerge('flex items-start justify-between gap-4', editedChart.style === 'pie' && 'justify-end')}>
+        <div className={twMerge('flex items-start justify-between gap-4', (editedChart.style === 'pie' || editedChart.method.type === 'custom') && 'justify-end')}>
           {editedChart.style !== 'pie' && editedChart.method.type !== 'custom' && (
             <div className='flex items-center gap-2'>
               <Toggle size='xs' color='secondary' defaultChecked={editedChart.breakdown !== undefined} onChange={(e) => editChart('breakdown', e.currentTarget.checked ? null : undefined)} id='breakdown_toggle' name='breakdown_toggle' />
@@ -774,6 +517,6 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           </Join>
         )}
       </div>
-    </>
+    </Fragment>
   )
 }

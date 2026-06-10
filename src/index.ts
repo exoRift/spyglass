@@ -8,7 +8,9 @@ import open from 'open'
 import vm from 'vm'
 import { openFileManagerDialog } from 'open-file-manager-dialog'
 
-import { type Chart, type Connection, Config, getColumnIdentifier, getColumnNonConflictName } from './lib/config'
+import { type Chart, type Connection, Config } from './lib/config'
+import { getColumnIdentifier, getColumnNonConflictName } from './lib/constants'
+
 import * as logger from './lib/logger'
 import { changecwd } from './lib/depcache'
 import { dateBucket } from './lib/database'
@@ -330,7 +332,7 @@ const binds = {
       if (chart.method.type.includes('aggregate')) query.groupBy('group')
     }
 
-    if (chart.sortCol) query.orderBy(chart.sortCol === '~aggregation' ? 'y' : chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
+    if (chart.sortCol) query.orderBy(chart.sortCol === '~aggregation' ? 'y' : 'x' in chart.method && chart.sortCol === chart.method.x ? 'x' : chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
     if (chart.limit) query.limit(chart.limit)
 
     return await query
