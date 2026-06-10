@@ -237,7 +237,7 @@ const binds = {
         if (chart.method.x && chart.method.y) {
           didSelect = true
           query.select({
-            x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
+            x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
             y: chart.method.y
           })
         }
@@ -247,7 +247,7 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
+              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
               y: activeConnection.count(chart.method.x)
             })
             .groupBy('x')
@@ -258,7 +258,7 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
+              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
               y: activeConnection.countDistinct(chart.method.y)
             })
             .groupBy('x')
@@ -269,7 +269,7 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
+              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
               y: activeConnection.avg(chart.method.y)
             })
             .groupBy('x')
@@ -298,7 +298,7 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.xTimeUnit ? dateBucket(activeConnection, chart.method.xTimeUnit, chart.method.x) : chart.method.x,
+              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
               y: activeConnection.sum(chart.method.y)
             })
             .groupBy('x')

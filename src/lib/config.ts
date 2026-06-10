@@ -9,7 +9,8 @@ const Join = type({
   foreignColumn: 'string | null'
 })
 
-export const TimeUnit = type.enumerated(...TIME_UNITS)
+const TimeUnit = type.enumerated(...TIME_UNITS)
+const ValueUnit = type('"currency" | "percentage"')
 
 const Chart = type({
   id: 'number',
@@ -28,18 +29,18 @@ const Chart = type({
     type({
       type: '"value" | "aggregate_count_unique" | "aggregate_sum"',
       x: 'string | null',
-      'xTimeUnit?': TimeUnit,
+      'xTimeBin?': TimeUnit,
       y: 'string | null'
     }),
     type({
       type: '"aggregate_count"',
       x: 'string | null',
-      'xTimeUnit?': TimeUnit
+      'xTimeBin?': TimeUnit
     }),
     type({
       type: '"aggregate_avg"',
       x: 'string | null',
-      'xTimeUnit?': TimeUnit,
+      'xTimeBin?': TimeUnit,
       y: 'string | null',
       bars: '"stddev" | "minmax" | null'
     }),
@@ -56,8 +57,8 @@ const Chart = type({
   style: '"bar" | "line" | "pie"',
   'joins?': Join.array(),
   'where?': 'string',
-  'xFormatter?': 'string',
-  'yFormatter?': 'string',
+  'xUnit?': ValueUnit,
+  'yUnit?': ValueUnit,
   'limit?': 'number',
   'sortCol?': 'string',
   'sortDesc?': 'true'

@@ -1,6 +1,6 @@
 import type { Knex } from 'knex'
 
-import type { TimeUnit } from './config'
+import type { TIME_UNITS } from './constants'
 
 /**
  * Returns an expression suitable for SELECT/GROUP BY/ORDER BY.
@@ -17,7 +17,7 @@ import type { TimeUnit } from './config'
  */
 export function dateBucket (
   knex: Knex,
-  unit: typeof TimeUnit.infer,
+  unit: typeof TIME_UNITS[number],
   column: string
 ): Knex.Raw {
   const client = knex.client.config.client
@@ -55,7 +55,7 @@ export function dateBucket (
         minute: '%Y-%m-%d %H:%i:00',
         second: '%Y-%m-%d %H:%i:%s',
         week: '%Y-%m-%d 00:00:00'
-      } satisfies Record<Exclude<typeof TimeUnit.infer, 'weekday'>, string>
+      } satisfies Record<Exclude<typeof TIME_UNITS[number], 'weekday'>, string>
 
       return knex.raw(
         'STR_TO_DATE(DATE_FORMAT(??, ?), \'%Y-%m-%d %H:%i:%s\')',
@@ -186,7 +186,7 @@ export function dateBucket (
       minute: '%Y-%m-%d %H:%M:00',
       second: '%Y-%m-%d %H:%M:%S',
       week: '%Y-%m-%d 00:00:00'
-    } satisfies Record<Exclude<typeof TimeUnit.infer, 'weekday'>, string>
+    } satisfies Record<Exclude<typeof TIME_UNITS[number], 'weekday'>, string>
 
     return knex.raw(
       'datetime(strftime(?, ??))',

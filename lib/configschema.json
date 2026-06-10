@@ -7,11 +7,17 @@
       "items": {
         "type": "object",
         "properties": {
+          "chartIdIncrementor": {
+            "type": "number"
+          },
           "charts": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
+                "id": {
+                  "type": "number"
+                },
                 "method": {
                   "anyOf": [
                     {
@@ -53,7 +59,7 @@
                             }
                           ]
                         },
-                        "xTimeUnit": {
+                        "xTimeBin": {
                           "enum": [
                             "day",
                             "hour",
@@ -127,7 +133,7 @@
                             }
                           ]
                         },
-                        "xTimeUnit": {
+                        "xTimeBin": {
                           "enum": [
                             "day",
                             "hour",
@@ -163,7 +169,7 @@
                             }
                           ]
                         },
-                        "xTimeUnit": {
+                        "xTimeBin": {
                           "enum": [
                             "day",
                             "hour",
@@ -324,6 +330,7 @@
                 }
               },
               "required": [
+                "id",
                 "method",
                 "pos",
                 "style",
@@ -419,6 +426,7 @@
           }
         },
         "required": [
+          "chartIdIncrementor",
           "charts",
           "details",
           "environment",

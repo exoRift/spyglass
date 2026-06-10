@@ -29,7 +29,10 @@ export function Multiselect ({
   const checked = useSet(forcedValue ?? defaultValue)
 
   useEffect(() => {
-    if (forcedValue !== undefined) checked.reset(forcedValue)
+    if (forcedValue === undefined) return
+
+    const set = new Set(forcedValue)
+    if (set.symmetricDifference(checked).size) checked.reset(forcedValue)
   }, [checked, forcedValue])
 
   return (
@@ -52,7 +55,7 @@ export function Multiselect ({
           const label = child.props.children ?? ''
 
           return (
-            <Dropdown.Item onClick={() => { checked.toggle(value); onValueChange?.(Array.from(checked)) }}>
+            <Dropdown.Item className='cursor-pointer select-none' onClick={() => { checked.toggle(value); onValueChange?.(Array.from(checked)) }}>
               <Checkbox readOnly size='sm' checked={checked.has(value)} />
 
               <span className='ml-1'>{label}</span>

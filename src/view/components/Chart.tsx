@@ -236,7 +236,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     isAnimating.current = true
 
     let isTimeXAxis
-    if ('xTimeUnit' in chart.method && chart.method.xTimeUnit === 'weekday') isTimeXAxis = false
+    if ('xTimeBin' in chart.method && chart.method.xTimeBin === 'weekday') isTimeXAxis = false
     else if (tables && chart.table && 'x' in chart.method && chart.method.x) {
       const x = chart.method.x
 
@@ -340,7 +340,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
     const shouldAccumulate = chart.cumulative && chart.style !== 'pie' && chart.method.type !== 'custom'
 
-    const isWeekdayXAxis = 'xTimeUnit' in chart.method && chart.method.xTimeUnit === 'weekday'
+    const isWeekdayXAxis = 'xTimeBin' in chart.method && chart.method.xTimeBin === 'weekday'
     const grouped = chart.breakdown ? Object.groupBy(rows, (r) => r.group) : { [chart.yTitle]: rows }
     for (const group in grouped) {
       const groupRows = grouped[group]!

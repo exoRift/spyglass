@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 
-import type { TimeUnit, Chart as ChartConfig } from '../../lib/config'
+import type { Chart as ChartConfig } from '../../lib/config'
 import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getColumnNonConflictName, TIME_UNITS } from '../../lib/constants'
 
 import { Button, Divider, Dropdown, Input, Join, Modal, Select, Toggle, Tooltip } from 'react-daisyui'
@@ -152,8 +152,11 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
     }))
   }, [tables, editedChart.table, editedChart.joins, +editedChart])
 
+  const xColumn = 'x' in editedChart.method ? usableColumns?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method).x) : undefined
+  const yColumn = 'y' in editedChart.method ? usableColumns?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method).y) : undefined
+
   return (
-    <Fragment key={editedChart.method.type + editedChart.style}>
+    <>
       <div className='fieldset w-full'>
         <label htmlFor='title' className='label'>
           <span className='label-text'>Title</span>
@@ -166,7 +169,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         <label htmlFor='table' className='label'>
           <span className='label-text'>Table</span>
         </label>
-        <Select defaultValue={editedChart.table ?? ''} onChange={(e) => editChart('table', e.currentTarget.value)} className='w-full' id='table' name='table'>
+        <Select value={editedChart.table ?? ''} onChange={(e) => editChart('table', e.currentTarget.value)} className='w-full' id='table' name='table'>
           <Select.Option value='' disabled>Choose a Table</Select.Option>
 
           {(tables && Object.keys(tables).map((t) => (
@@ -187,7 +190,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                 <div className='flex gap-4 justify-between'>
                   <label className='font-semibold'>{j.table}</label>
 
-                  <Select size='xs' defaultValue={j.type} className='w-fit' onChange={(e) => { j.type = e.currentTarget.value as typeof j.type }}>
+                  <Select size='xs' value={j.type} className='w-fit' onChange={(e) => { j.type = e.currentTarget.value as typeof j.type }}>
                     <Select.Option value='inner'>Inner</Select.Option>
                     <Select.Option value='left'>Left</Select.Option>
                     <Select.Option value='right'>Right</Select.Option>
@@ -199,7 +202,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     <label htmlFor={`join_${j.table}_base`} className='label'>
                       <span className='label-text'>Base Column</span>
                     </label>
-                    <Select defaultValue={j.baseColumn ?? ''} onChange={(e) => { j.baseColumn = e.currentTarget.value }} className='w-full' id={`join_${j.table}_base`} name={`join_${j.table}_base`}>
+                    <Select value={j.baseColumn ?? ''} onChange={(e) => { j.baseColumn = e.currentTarget.value }} className='w-full' id={`join_${j.table}_base`} name={`join_${j.table}_base`}>
                       <Select.Option value='' disabled>Choose a column</Select.Option>
 
                       {tables?.[editedChart.table ?? '']?.map((c) =>
@@ -212,7 +215,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     <label htmlFor={`join_${j.table}_foreign`} className='label'>
                       <span className='label-text'>Foreign Column</span>
                     </label>
-                    <Select defaultValue={j.foreignColumn ?? ''} onChange={(e) => { j.foreignColumn = e.currentTarget.value }} className='w-full' id={`join_${j.table}_foreign`} name={`join_${j.table}_foreign`}>
+                    <Select value={j.foreignColumn ?? ''} onChange={(e) => { j.foreignColumn = e.currentTarget.value }} className='w-full' id={`join_${j.table}_foreign`} name={`join_${j.table}_foreign`}>
                       <Select.Option value='' disabled>Choose a column</Select.Option>
 
                       {tables?.[j.table]?.map((c) => (
@@ -259,7 +262,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           <label htmlFor='method' className='label'>
             <span className='label-text'>Datapoint Method</span>
           </label>
-          <Select defaultValue={editedChart.method.type} onChange={(e) => editChart('method.type', e.currentTarget.value as ChartConfig['method']['type'])} className='w-full' id='method' name='method'>
+          <Select value={editedChart.method.type} onChange={(e) => editChart('method.type', e.currentTarget.value as ChartConfig['method']['type'])} className='w-full' id='method' name='method'>
             <Select.Option value='column'>Column Value</Select.Option>
             <Select.Option value='aggregate_count'>Aggregate by Count</Select.Option>
             <Select.Option value='aggregate_count_unique'>Aggregate by Unique Count</Select.Option>
@@ -273,7 +276,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           <label htmlFor='type' className='label'>
             <span className='label-text'>Chart Style</span>
           </label>
-          <Select defaultValue={editedChart.style} onChange={(e) => editChart('style', e.currentTarget.value as ChartConfig['style'])} className='w-full' id='type' name='type'>
+          <Select value={editedChart.style} onChange={(e) => editChart('style', e.currentTarget.value as ChartConfig['style'])} className='w-full' id='type' name='type'>
             <Select.Option value='bar'>Bar</Select.Option>
             <Select.Option value='line'>Line</Select.Option>
             <Select.Option value='pie'>Pie</Select.Option>
@@ -296,7 +299,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                 <label htmlFor='table' className='label'>
                   <span className='label-text'>{editedChart.method.type.includes('aggregate') ? 'X Axis Grouping Column' : 'X Axis Column'}</span>
                 </label>
-                <Select disabled={!editedChart.table} defaultValue={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
+                <Select disabled={!editedChart.table} value={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
                   <Select.Option value='' disabled>Choose a column</Select.Option>
 
                   {(usableColumns?.map((c) => (
@@ -310,33 +313,41 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                   <span className='label-text'>S</span>
                 </label>
 
-                <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='group cursor-pointer flex items-center h-10'>
-                  <MdSettings className='text-2xl transition group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
+                <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={Boolean(xColumn?.data_type.match(/date|time/)) || typeof xColumn?.numeric_precision !== 'number'}>
+                  <MdSettings className='text-2xl transition not:disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
                 </button>
               </div>
             </div>
-            <details id='xSettings' className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+            <details id='xSettings' open={!editedChart.table ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
               <summary className='hidden' />
 
               <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
-                {editedChart.table &&
-                  usableColumns
-                    ?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method & { xTimeUnit: typeof TimeUnit.infer }).x)
-                    ?.data_type.match(/date|time/) && (
-                      <>
-                        <div className='fieldset w-full'>
-                          <label htmlFor='xTimeUnit' className='label'>
-                            <span className='label-text'>X Time Unit</span>
-                          </label>
-                          <Select defaultValue={editedChart.method.xTimeUnit ?? ''} onChange={(e) => editChart('method.xTimeUnit', (e.currentTarget.value as typeof TimeUnit.infer | '') || undefined)} id='xTimeUnit' name='xTimeUnit'>
-                            <Select.Option value=''>None</Select.Option>
+                {!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision === 'number' && (
+                  <div className='fieldset w-full'>
+                    <label htmlFor='xUnit' className='label'>
+                      <span className='label-text'>X Axis Unit Type</span>
+                    </label>
+                    <Select value={editedChart.xUnit ?? ''} onChange={(e) => editChart('xUnit', e.currentTarget.value as typeof editedChart.xUnit || undefined)} className='w-full' id='xUnit' name='xUnit'>
+                      <Select.Option value=''>Auto</Select.Option>
+                      <Select.Option value='currency'>Currency</Select.Option>
+                      <Select.Option value='percentage'>Percentage</Select.Option>
+                    </Select>
+                  </div>
+                )}
 
-                            {TIME_UNITS.map((unit) => (
-                              <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
-                            ))}
-                          </Select>
-                        </div>
-                      </>
+                {xColumn?.data_type.match(/date|time/) && (
+                  <div className='fieldset w-full'>
+                    <label htmlFor='xTimeBin' className='label'>
+                      <span className='label-text'>X Time Bin</span>
+                    </label>
+                    <Select value={editedChart.method.xTimeBin ?? ''} onChange={(e) => editChart('method.xTimeBin', (e.currentTarget.value as typeof editedChart.method.xTimeBin | '') || undefined)} id='xTimeBin' name='xTimeBin'>
+                      <Select.Option value=''>None</Select.Option>
+
+                      {TIME_UNITS.map((unit) => (
+                        <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                      ))}
+                    </Select>
+                  </div>
                 )}
               </div>
             </details>
@@ -357,7 +368,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                 <label htmlFor='yColumn' className='label'>
                   <span className='label-text'>Y Axis Column</span>
                 </label>
-                <Select disabled={!editedChart.table} defaultValue={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
+                <Select disabled={!editedChart.table} value={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                   <Select.Option value='' disabled>Choose a column</Select.Option>
 
                   {(editedChart.method.type === 'aggregate_count_unique' ? usableColumns : usableColumns?.filter((c) => c.numeric_precision !== null))?.map((c) => (
@@ -365,7 +376,36 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                   ))}
                 </Select>
               </div>
+
+              <div className='fieldset'>
+                <label className='label invisible'>
+                  <span className='label-text'>S</span>
+                </label>
+
+                <button onClick={() => { const details = document.getElementById('ySettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number'}>
+                  <MdSettings className='text-2xl transition not:disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
+                </button>
+              </div>
             </div>
+
+            <details id='ySettings' open={!editedChart.table ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+              <summary className='hidden' />
+
+              <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
+                {!yColumn?.data_type.match(/date|time/) && typeof yColumn?.numeric_precision === 'number' && (
+                  <div className='fieldset w-full'>
+                    <label htmlFor='xUnit' className='label'>
+                      <span className='label-text'>Y Axis Unit Type</span>
+                    </label>
+                    <Select value={editedChart.yUnit ?? ''} onChange={(e) => editChart('yUnit', e.currentTarget.value as typeof editedChart.yUnit || undefined)} className='w-full' id='yUnit' name='yUnit'>
+                      <Select.Option value=''>Auto</Select.Option>
+                      <Select.Option value='currency'>Currency</Select.Option>
+                      <Select.Option value='percentage'>Percentage</Select.Option>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </details>
           </section>
         )}
 
@@ -374,7 +414,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             <label htmlFor='bars' className='label'>
               <span className='label-text'>Error Bars</span>
             </label>
-            <Select disabled={Boolean(editedChart.cumulative)} defaultValue={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
+            <Select disabled={Boolean(editedChart.cumulative)} value={editedChart.method.bars ?? ''} onChange={(e) => editChart('method.bars', (e.currentTarget.value || null) as typeof editedChart.method.bars)} className='w-full' id='bars' name='bars'>
               <Select.Option value=''>None</Select.Option>
               <Select.Option value='stddev'>Standard Deviation</Select.Option>
               <Select.Option value='minmax'>Minimum / Maximum</Select.Option>
@@ -427,7 +467,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         <label htmlFor='where' className='label'>
           <span className='label-text'>Filter</span>
         </label>
-        <DebouncedInput delay={500} placeholder='Raw SQL WHERE Clause...' defaultValue={editedChart.where} onDebouncedChange={(v) => editChart('where', v)} className='w-full' id='where' name='where' />
+        <DebouncedInput delay={500} placeholder='Raw SQL WHERE Clause...' defaultValue={editedChart.where ?? ''} onDebouncedChange={(v) => editChart('where', v)} className='w-full' id='where' name='where' />
       </div>
 
       <div className='fieldset w-full'>
@@ -449,7 +489,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             {Array.from({ length: Math.max(editedChart.traceColors?.length ?? 0, DEFAULT_TRACE_COLORS.length) }, (_, i) => (
               <Tooltip key={i} style={{ transitionDelay: `${i * 40}ms` }} message={`Trace ${i + 1}`} className={twMerge('transition-all block transition-discrete opacity-100 starting:opacity-0', editedChart.breakdown === undefined && editedChart.style !== 'pie' && i > 0 && 'hidden opacity-0')}>
                 <label style={{ backgroundColor: editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i] }} className='flex justify-center size-4 rounded-full cursor-pointer hover:ring focus-within:ring-2' htmlFor={`traceColors_${i}`}>
-                  <input type='color' defaultValue={editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i]} onChange={(e) => { editedChart.traceColors ??= []; editedChart.traceColors[i] = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id={`traceColors_${i}`} name={`traceColors_${i}`} />
+                  <input type='color' value={editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i]} onChange={(e) => { editedChart.traceColors ??= []; editedChart.traceColors[i] = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id={`traceColors_${i}`} name={`traceColors_${i}`} />
                 </label>
               </Tooltip>
             ))}
@@ -457,7 +497,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             {editedChart.method.type === 'aggregate_avg' && editedChart.method.bars && (
               <Tooltip message='Bars'>
                 <label style={{ backgroundColor: editedChart.barColor ?? DEFAULT_BAR_COLOR }} className='flex justify-center size-4 rounded-sm cursor-pointer hover:ring focus-within:ring-2' htmlFor='barColor'>
-                  <input type='color' defaultValue={editedChart.barColor ?? DEFAULT_BAR_COLOR} onChange={(e) => { editedChart.barColor = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id='barColor' name='barColor' />
+                  <input type='color' value={editedChart.barColor ?? DEFAULT_BAR_COLOR} onChange={(e) => { editedChart.barColor = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id='barColor' name='barColor' />
                 </label>
               </Tooltip>
             )}
@@ -470,7 +510,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
               <span className='label-text'>Breakdown Column</span>
             </label>
 
-            <Select key={editedChart.breakdown} id='breakdown' name='breakdown' defaultValue={editedChart.breakdown ?? ''} onChange={(e) => editChart('breakdown', e.currentTarget.value)}>
+            <Select id='breakdown' name='breakdown' value={editedChart.breakdown ?? ''} onChange={(e) => editChart('breakdown', e.currentTarget.value)}>
               <Select.Option value='' disabled>Choose a column</Select.Option>
 
               {usableColumns?.map((c) => <Select.Option key={c.identifier} value={c.identifier}>{c.display_name}</Select.Option>)}
@@ -493,7 +533,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
               <label htmlFor='sortCol' className='label'>
                 <span className='label-text'>Order By</span>
               </label>
-              <Select disabled={!editedChart.table} defaultValue={editedChart.sortCol ?? ''} onChange={(e) => editChart('sortCol', e.currentTarget.value)} className='w-full join-item' id='sortCol' name='sortCol'>
+              <Select disabled={!editedChart.table} value={editedChart.sortCol ?? ''} onChange={(e) => editChart('sortCol', e.currentTarget.value)} className='w-full join-item' id='sortCol' name='sortCol'>
                 <Select.Option value=''>No Order</Select.Option>
 
                 {editedChart.method.type.includes('aggregate')
@@ -517,6 +557,6 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           </Join>
         )}
       </div>
-    </Fragment>
+    </>
   )
 }
