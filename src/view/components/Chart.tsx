@@ -60,34 +60,22 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
 }
 
 export function Chart ({ chart, tables, canQuery, className, onContextMenu, onError }: { chart: ChartConfig, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
-  const chartContainer = useRef<HTMLDivElement>(null)
+  const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.EChartsType>(undefined)
   const isAnimating = useRef(true)
   const waitingForResize = useRef(false)
 
   const [rows, setRows] = useState<any[]>([])
 
-  const waitForAnimationToFinish = useCallback(() => new Promise<void>((_resolve) => {
-    const resolve = (): void => {
-      chartRef.current?.off('finished', resolve)
-      _resolve()
-    }
-
-    if (isAnimating.current) chartRef.current?.on('finished', resolve)
-    else _resolve()
-  }), [])
-
   const resize = useCallback(() => {
     if (waitingForResize.current) return
     waitingForResize.current = true
 
-    void waitForAnimationToFinish().then(() => {
-      requestAnimationFrame(() => {
-        chartRef.current?.resize()
-        waitingForResize.current = false
-      })
+    requestAnimationFrame(() => {
+      if (!chartRef.current?.isDisposed()) chartRef.current?.resize()
+      waitingForResize.current = false
     })
-  }, [waitForAnimationToFinish])
+  }, [])
 
   useEffect(() => {
     const theme = {
@@ -166,11 +154,11 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     }
 
     const aborter = new AbortController()
-    chartRef.current = echarts.init(chartContainer.current, theme, { renderer: 'svg' })
+    chartRef.current = echarts.init(chartContainerRef.current, theme, { renderer: 'svg' })
     chartRef.current.group = 'dashboard'
     echarts.connect('dashboard')
 
-    const widget = chartContainer.current?.closest('.dashup-widget')
+    const widget = chartContainerRef.current?.closest('.dashup-widget')
 
     const observer = new ResizeObserver(resize)
     if (widget) observer.observe(widget)
@@ -299,7 +287,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         bottom: figuredType === 'time' ? 105 : 75
       },
       xAxis: {
-        name: chart.style === 'pie' ? undefined : chart.xTitle,
+        name: !canQuery || !chart.table || chart.style === 'pie' ? undefined : chart.xTitle,
         nameLocation: 'center',
         nameGap: 30,
         nameTextStyle: {
@@ -312,11 +300,11 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       yAxis: {
         type: 'value',
+        name: !canQuery || !chart.table ? undefined : chart.yTitle,
         nameLocation: 'center',
         nameTextStyle: {
           fontWeight: 'bold'
-        },
-        name: chart.yTitle
+        }
       },
       dataZoom: {
         show: figuredType === 'time' && chart.style !== 'pie',
@@ -330,6 +318,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       color: DEFAULT_TRACE_COLORS.map((c, i) => chart.traceColors?.[i] ?? c)
     } satisfies echarts.EChartsOption)
   }, [
+    canQuery,
     rows,
     tables,
     chart.table,
@@ -339,8 +328,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chart.yTitle,
     chart.method,
     chart.style,
-    chart.traceColors,
-    waitForAnimationToFinish
+    chart.traceColors
   ])
 
   useEffect(() => {
@@ -405,7 +393,6 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chart.barColor,
     chart.breakdown,
     chart.cumulative,
-    waitForAnimationToFinish,
     canQuery
   ])
 
@@ -415,11 +402,12 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         <MdDragHandle />
       </div>
 
-      <div className={twMerge('flex h-full select-none', className)} onContextMenu={onContextMenu} onDoubleClick={(e) => e.stopPropagation()}>
-        <div className='w-0 grow flex flex-col'>
-          <div className='h-0 grow' ref={chartContainer} />
-        </div>
-      </div>
+      <div
+        ref={chartContainerRef}
+        className={twMerge('flex bg-base-300 w-full h-full min-w-1 min-h-1 select-none', className)}
+        onContextMenu={onContextMenu}
+        onDoubleClick={(e) => e.stopPropagation()}
+      />
 
       <div className={twMerge('absolute inset-0 flex justify-center items-center text-center text-lg font-bold text-base-content/50 pointer-events-none select-none', chart.table && 'hidden')}>Right click on me to edit my properties!</div>
     </>

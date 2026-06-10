@@ -251,6 +251,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
           database,
           filename
         }
+        obj.chartIdIncrementor = 0
         config.connections.push(obj)
 
         void saveConfig(config)

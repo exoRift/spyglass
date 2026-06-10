@@ -310,8 +310,8 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                   <span className='label-text'>S</span>
                 </label>
 
-                <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='group cursor-pointer flex items-center h-10 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary'>
-                  <MdSettings className='text-2xl transition group-hover:rotate-45' />
+                <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='group cursor-pointer flex items-center h-10'>
+                  <MdSettings className='text-2xl transition group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
                 </button>
               </div>
             </div>

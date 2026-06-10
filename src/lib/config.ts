@@ -12,6 +12,7 @@ const Join = type({
 export const TimeUnit = type.enumerated(...TIME_UNITS)
 
 const Chart = type({
+  id: 'number',
   pos: {
     x: 'number',
     y: 'number',
@@ -80,7 +81,8 @@ const Connection = type({
       filename: 'string'
     }
   ),
-  charts: Chart.array()
+  charts: Chart.array(),
+  chartIdIncrementor: 'number'
 })
 export type Connection = typeof Connection.infer
 
