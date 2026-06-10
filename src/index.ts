@@ -432,20 +432,20 @@ const originalError = console.error
 const originalWarn = console.warn
 const originalDebug = console.debug
 console.info = (...args) => {
-  void logInfo(...args).catch(() => logWarn('Failed to log to INFO'))
   originalInfo(...args)
+  void logInfo(...args).catch(() => logWarn('Failed to log to INFO'))
 }
 console.error = (...args) => {
-  void logError(...args).catch(() => logWarn('Failed to log to ERROR'))
   originalError(...args)
+  void logError(...args).catch(() => logWarn('Failed to log to ERROR'))
 }
 console.warn = (...args) => {
-  void logWarn(...args).catch(() => logWarn('Failed to log to WARN'))
   originalWarn(...args)
+  void logWarn(...args).catch(() => logWarn('Failed to log to WARN'))
 }
 console.debug = (...args) => {
-  void logDebug(...args).catch(() => logWarn('Failed to log to DEBUG'))
   originalDebug(...args)
+  void logDebug(...args).catch(() => logWarn('Failed to log to DEBUG'))
 }
 window.addEventListener('error', (e) => { void logError('Webview Runtime Error:', e.message) }, { passive: true })
 `)
@@ -454,7 +454,7 @@ if (process.env.NODE_ENV === 'production') {
   const compiled = await Bun.file(template).text()
   webview.init('window.addEventListener("beforeunload", (e) => { e.preventDefault(); e.returnValue = "" })')
   webview.setHTML(compiled)
-  webview.runNonBlocking(() => /* process.exit(0) */{})
+  webview.runNonBlocking(() => process.exit(0))
 } else {
   const api = Bun.serve({
     async fetch (req) {

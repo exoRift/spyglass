@@ -179,7 +179,27 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       isAnimating.current = false
     }
 
+    let lastClick = Date.now()
+    /**
+     * Reset zoom to base level
+     * @param e The click event
+     */
+    function resetZoom (e: any): void {
+      const now = Date.now()
+
+      if (now - lastClick < 500 && e.target?.cursor === 'crosshair') {
+        chartRef.current?.dispatchAction({
+          type: 'dataZoom',
+          start: 0,
+          end: 100
+        })
+      }
+
+      lastClick = now
+    }
+
     chartRef.current.on('finished', onFinished)
+    chartRef.current.getZr().on('mousedown', resetZoom)
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'cross' } } })
@@ -191,6 +211,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     return () => {
       aborter.abort()
       chartRef.current?.off('finished', onFinished)
+      chartRef.current?.getZr().off('mousedown', resetZoom)
       chartRef.current?.dispose()
       observer.disconnect()
     }

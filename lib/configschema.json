@@ -52,6 +52,18 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "xTimeUnit": {
+                          "enum": [
+                            "day",
+                            "hour",
+                            "minute",
+                            "month",
+                            "second",
+                            "week",
+                            "weekday",
+                            "year"
+                          ]
                         }
                       },
                       "required": [
@@ -59,7 +71,8 @@
                         "type",
                         "x",
                         "y"
-                      ]
+                      ],
+                      "additionalProperties": false
                     },
                     {
                       "type": "object",
@@ -81,7 +94,8 @@
                         "columns",
                         "fn",
                         "type"
-                      ]
+                      ],
+                      "additionalProperties": false
                     },
                     {
                       "type": "object",
@@ -112,13 +126,26 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "xTimeUnit": {
+                          "enum": [
+                            "day",
+                            "hour",
+                            "minute",
+                            "month",
+                            "second",
+                            "week",
+                            "weekday",
+                            "year"
+                          ]
                         }
                       },
                       "required": [
                         "type",
                         "x",
                         "y"
-                      ]
+                      ],
+                      "additionalProperties": false
                     },
                     {
                       "type": "object",
@@ -135,12 +162,25 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "xTimeUnit": {
+                          "enum": [
+                            "day",
+                            "hour",
+                            "minute",
+                            "month",
+                            "second",
+                            "week",
+                            "weekday",
+                            "year"
+                          ]
                         }
                       },
                       "required": [
                         "type",
                         "x"
-                      ]
+                      ],
+                      "additionalProperties": false
                     }
                   ]
                 },
@@ -165,7 +205,8 @@
                     "width",
                     "x",
                     "y"
-                  ]
+                  ],
+                  "additionalProperties": false
                 },
                 "style": {
                   "enum": [
@@ -195,6 +236,22 @@
                 },
                 "yTitle": {
                   "type": "string"
+                },
+                "barColor": {
+                  "type": "string"
+                },
+                "breakdown": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cumulative": {
+                  "const": true
                 },
                 "joins": {
                   "type": "array",
@@ -237,7 +294,8 @@
                       "foreignColumn",
                       "table",
                       "type"
-                    ]
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "limit": {
@@ -248,6 +306,12 @@
                 },
                 "sortDesc": {
                   "const": true
+                },
+                "traceColors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "where": {
                   "type": "string"
@@ -268,7 +332,8 @@
                 "title",
                 "xTitle",
                 "yTitle"
-              ]
+              ],
+              "additionalProperties": false
             }
           },
           "details": {
@@ -319,7 +384,8 @@
                   "database",
                   "host",
                   "username"
-                ]
+                ],
+                "additionalProperties": false
               },
               {
                 "type": "object",
@@ -334,7 +400,8 @@
                 "required": [
                   "client",
                   "filename"
-                ]
+                ],
+                "additionalProperties": false
               }
             ]
           },
@@ -356,7 +423,8 @@
           "details",
           "environment",
           "name"
-        ]
+        ],
+        "additionalProperties": false
       },
       "default": []
     },
@@ -368,5 +436,6 @@
       ],
       "default": "system"
     }
-  }
+  },
+  "additionalProperties": false
 }
