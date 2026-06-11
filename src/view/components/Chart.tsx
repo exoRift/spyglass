@@ -228,8 +228,6 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
     return () => {
       aborter.abort()
-      chartRef.current?.off('finished', onFinished)
-      chartRef.current?.getZr().off('mousedown', resetZoom)
       chartRef.current?.dispose()
       observer.disconnect()
     }
@@ -473,7 +471,9 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
       chartRef.current?.on('legendselectchanged', updatePieTotal)
 
-      return () => { chartRef.current?.off('legendselectchanged', updatePieTotal) }
+      return () => {
+        if (!chartRef.current?.isDisposed()) chartRef.current?.off('legendselectchanged', updatePieTotal)
+      }
     }
   }, [
     chart.yTitle,

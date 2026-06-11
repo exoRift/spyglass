@@ -322,11 +322,17 @@
                 "where": {
                   "type": "string"
                 },
-                "xFormatter": {
-                  "type": "string"
+                "xUnit": {
+                  "enum": [
+                    "currency",
+                    "percentage"
+                  ]
                 },
-                "yFormatter": {
-                  "type": "string"
+                "yUnit": {
+                  "enum": [
+                    "currency",
+                    "percentage"
+                  ]
                 }
               },
               "required": [

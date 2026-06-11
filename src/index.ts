@@ -384,7 +384,7 @@ const binds = {
       })
   },
   promptFile (accept?: string[] | null) {
-    return openFileManagerDialog(process.cwd(), { filter: accept ?? undefined, limit: 1 })
+    return openFileManagerDialog(process.cwd(), { filter: accept ?? undefined, limit: 1, terminal: 'Spyglass' })
       .then(({ files, canceled }) => {
         if (canceled) return null
         else return files[0] ?? null
@@ -432,7 +432,7 @@ window.addEventListener('error', (e) => { void logError('Webview Runtime Error:'
 `)
 if (process.env.NODE_ENV === 'production') {
   const { default: template } = await import('./view/dist/index.html', { with: { type: 'file' } })
-  const compiled = await Bun.file(template).text()
+  const compiled = await Bun.file(template as unknown as string).text()
   webview.init('window.addEventListener("beforeunload", (e) => { e.preventDefault(); e.returnValue = "" })')
   webview.setHTML(compiled)
   webview.runNonBlocking(() => process.exit(0))

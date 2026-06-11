@@ -33,9 +33,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 
-spyglass.json
-spyglass
-spyglass.app
-spyglass.exe
+# Build Artifacts
+build/
+**/spyglass.json
+**/spyglass
+**/spyglass.app
+**/spyglass.exe
 
-*.js.map
+**/*.js.map
