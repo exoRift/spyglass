@@ -89,6 +89,16 @@ function formatValue (value: string | number, unit: ValueUnit | undefined): stri
   }
 }
 
+const PADDING = 100
+const SCROLL_AMNT = 20
+function onMouseMove (e: MouseEvent): void {
+  const scroller = document.getElementById('dash-scroller')
+  if (!scroller) return
+
+  if (e.clientY <= (PADDING + scroller.clientTop)) scroller.scrollTop -= SCROLL_AMNT
+  else if (e.clientY >= ((scroller.clientTop + scroller.clientHeight) - PADDING)) scroller.scrollTop += SCROLL_AMNT
+}
+
 export function Chart ({ chart, tables, canQuery, className, onContextMenu, onError }: { chart: ChartConfig, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.EChartsType>(undefined)
@@ -226,10 +236,15 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'line' } } })
     }, { signal: aborter.signal, passive: true })
 
+    document.addEventListener('mouseup', () => {
+      document.removeEventListener('mousemove', onMouseMove)
+    }, { passive: true, signal: aborter.signal })
+
     return () => {
       aborter.abort()
       chartRef.current?.dispose()
       observer.disconnect()
+      document.removeEventListener('mousemove', onMouseMove) // In case it's still registered
     }
   }, [resize])
 
@@ -258,7 +273,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       })
 
     return () => aborter.abort()
-  }, [canQuery, chart, (+chart - +chart.pos)])
+  }, [canQuery, chart, +chart])
 
   useEffect(() => {
     isAnimating.current = true
@@ -490,7 +505,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
   return (
     <>
-      <div className='transition-opacity absolute inset-x-0 flex justify-center bg-base-200 handle cursor-grab opacity-0 z-10 [.dashup-widget:hover_&]:opacity-100 [.dashup-widget[data-editing]_&]:hidden'>
+      <div className='transition-opacity absolute inset-x-0 flex justify-center bg-base-200 handle cursor-grab opacity-0 z-10 [.dashup-widget:hover_&]:opacity-100 [.dashup-widget[data-editing]_&]:hidden' onMouseDown={() => document.addEventListener('mousemove', onMouseMove, { passive: true })}>
         <MdDragHandle />
       </div>
 

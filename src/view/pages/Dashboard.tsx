@@ -14,7 +14,7 @@ import { MdArrowLeft, MdCable, MdDelete, MdFileCopy, MdSave, MdWarning } from 'r
 import 'dashup/style.css'
 
 export default function Dashboard ({ navigate, connIndex }: { navigate: typeof renderRoute, connIndex: number }): React.ReactNode {
-  const [config, setConfig] = useObject(window._config)
+  const [config, setConfig] = useObject(window._config, ['pos'])
   const connection = config.connections[connIndex]!
 
   const {
@@ -87,8 +87,6 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       style: 'line',
       table: null
     })
-
-    setIsUnsaved(true)
   }, [connection])
 
   const updateWidgets = useCallback((widgets: Layout) => {
@@ -144,8 +142,10 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         .then(window.getTables)
         .then(setTables)
         .then(() => setConnected(true))
+
+      return () => { void window.setActiveConnection(-1) }
     }
-  }, [connection, connIndex, password])
+  }, [connection.details.client, connection.details.client === 'sqlite' ? undefined : connection.details.password, connIndex, password])
 
   useEffect(() => setIsUnsaved((prior) => prior !== null), [connection, +connection])
 
@@ -187,7 +187,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         </Button>
       </header>
 
-      <div className={twMerge('transition duration-700 h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&_.dashup-widget:hover]:!z-30 opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
+      <div id='dash-scroller' className={twMerge('transition duration-700 h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&:not(:has(.dragging))_.dashup-widget:hover]:!z-30 opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
           <Dash widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='!transition-none' onChange={updateWidgets} />
           <div className={twMerge('transition fixed min-h-screen inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
@@ -203,14 +203,14 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
                 <h1 className='text-2xl font-bold'>Edit Chart</h1>
 
                 <Tooltip color='info' message='Duplicate' position='right'>
-                  <button className='flex items-center text-info text-xl cursor-pointer' onClick={() => { const clone = structuredClone(getUnproxiedObject(connection.charts[editing!]!)); clone.id = connection.chartIdIncrementor++; connection.charts.splice(editing!, 0, clone); setEditing(null); setIsUnsaved(true) }}>
+                  <button className='flex items-center text-info text-xl cursor-pointer' onClick={() => { const clone = structuredClone(getUnproxiedObject(connection.charts[editing!]!)); clone.id = connection.chartIdIncrementor++; connection.charts.splice(editing!, 0, clone); setEditing(null) }}>
                     <MdFileCopy />
                   </button>
                 </Tooltip>
               </div>
 
               <Tooltip color='error' message='Delete' position='left'>
-                <button className='flex items-center text-error text-2xl cursor-pointer' onClick={() => { connection.charts.splice(editing!, 1); setEditing(null); setIsUnsaved(true) }}>
+                <button className='flex items-center text-error text-2xl cursor-pointer' onClick={() => { connection.charts.splice(editing!, 1); setEditing(null) }}>
                   <MdDelete />
                 </button>
               </Tooltip>

@@ -474,7 +474,7 @@ function ConfigLoadFailureGuard (): React.ReactNode {
 }
 
 export default function Connections ({ navigate, editing }: { navigate: typeof renderRoute, editing?: number }): React.ReactNode {
-  const [config] = useObject(window._config)
+  const [config] = useObject(window._config, ['pos'])
 
   return (
     <>

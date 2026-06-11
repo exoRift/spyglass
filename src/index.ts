@@ -50,7 +50,7 @@ if (process.env.NODE_ENV === 'production') {
 
   function onExit (code: number): void {
     if (code) {
-      fs.appendFileSync(LOG_PATH, 'SPYGLASS HAS CRASHED! :(')
+      fs.appendFileSync(LOG_PATH, `SPYGLASS HAS CRASHED! :( (Code ${code})`)
       openSync(LOG_PATH)
     }
   }
@@ -516,7 +516,7 @@ if (process.env.NODE_ENV === 'production') {
 
     logger.debug('Vite running on URL:', url)
     if (!url) throw Error('Unexpected: Vite did not return a local address')
-    // webview.init('document.addEventListener("keydown", (e) => { if (e.key === ";") { debugger } })')
+    webview.init('document.addEventListener("keydown", (e) => { if (e.key === ";") { debugger } })')
     webview.navigate(url)
     webview.runNonBlocking(() => process.exit(0))
   }, { once: true })

@@ -1,4 +1,4 @@
-import React, { Children, useEffect } from 'react'
+import { Children, isValidElement, useCallback, useEffect } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 import { useSet } from 'react-exo-hooks'
@@ -17,7 +17,7 @@ export function Multiselect ({
   children,
   className,
   ...props
-}: Omit<React.ComponentProps<'summary'>, 'value' | 'defaultValue' | 'children'> & {
+}: Omit<React.ComponentProps<'button'>, 'value' | 'defaultValue' | 'children'> & {
   name?: string
   value?: string[]
   defaultValue?: string[]
@@ -27,6 +27,15 @@ export function Multiselect ({
   children?: React.ReactElement<OptionProps> | Array<React.ReactElement<OptionProps>>
 }): React.ReactNode {
   const checked = useSet(forcedValue ?? defaultValue)
+
+  const onMouseDown = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    if (e.button === 0) {
+      e.preventDefault()
+      // @ts-expect-error
+      if (document.activeElement && e.currentTarget.parentElement!.contains(document.activeElement)) document.activeElement.blur()
+      else e.currentTarget.focus()
+    }
+  }, [])
 
   useEffect(() => {
     if (forcedValue === undefined) return
@@ -43,14 +52,13 @@ export function Multiselect ({
         </div>
       )}
 
-      {/* @ts-expect-error */}
-      <button disabled={disabled || undefined} className={twMerge('select select-none *:w-full cursor-auto outline-offset-0', className)} {...props} onPointerDown={(e) => { e.preventDefault(); if (document.activeElement && e.currentTarget.parentElement!.contains(document.activeElement)) document.activeElement.blur(); else e.currentTarget.focus() }}>
+      <button disabled={disabled || undefined} className={twMerge('select select-none *:w-full cursor-auto outline-offset-0', className)} {...props} onMouseDown={onMouseDown}>
         {`${checked.size} ${unit}${checked.size === 1 ? '' : 's'} selected`}
       </button>
 
       <Dropdown.Menu className='w-full'>
         {children && Children.map(children, (child) => {
-          if (!React.isValidElement<OptionProps>(child)) return null
+          if (!isValidElement<OptionProps>(child)) return null
           const value = child.props.value as string
           const label = child.props.children ?? ''
 
