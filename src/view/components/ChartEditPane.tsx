@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { usePromise } from 'react-exo-hooks'
 import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
@@ -16,7 +16,7 @@ import { javascript } from '@codemirror/lang-javascript'
 import { MdDelete, MdHelp, MdArrowUpward, MdAdd, MdSettings } from 'react-icons/md'
 
 type Widen<T> = {
-  [K in keyof T]: T[K] extends string ? string : T[K];
+  [K in keyof T]: T[K] extends string ? string : T[K]
 }
 type UnionToIntersection<U> = (
   U extends any ? (k: Widen<U>) => void : never
@@ -60,8 +60,21 @@ function MapFunctionHelpButton (): React.ReactNode {
               </p>
               <p>
                 A column can be accessed with <code>rows[INDEX].COLUMN_NAME</code>.
-                Be sure to <code>return</code> an array of datapoints <code>&#123; x: any, y: number, lowBar?: number, highBar?: number, group?: string | number &#125;</code>.
-                If <code>x</code> can be interpreted as a date from a string, it will be. <code>y</code> should be a number.
+                Be sure to <code>return</code> an array of datapoints.
+                <code className='block'>
+                  &#123;<br />
+                  <span className='block ml-4'>
+                    &#9;x: any,<br />
+                    &#9;y: number,<br />
+                    &#9;lowBar?: number,<br />
+                    &#9;highBar?: number,<br />
+                    &#9;group?: string | number -- Breakdown group<br />
+                    &#9;style?: echarts.ItemStyleOption
+                  </span>
+                  &#125;
+                </code>
+                If <code>x</code> can be interpreted as a date from a string, it will be. <code>y</code> should be a number.<br />
+                <a className='link' href='https://echarts.apache.org/en/option.html#series-line.itemStyle' target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void window.openLink(e.currentTarget.href) }}>Echarts <code>itemStyle</code> Documentation</a>
               </p>
               <p>
                 You can optionally install <a className='link' href='https://www.npmjs.com/package/data-forge' target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void window.openLink(e.currentTarget.href) }}>data-forge</a> and you will automatically be able to use it with the <code>forge</code> variable which is df's default export.

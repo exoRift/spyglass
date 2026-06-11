@@ -388,8 +388,17 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         name: group,
         type: chart.style,
         data: chart.style === 'pie'
-          ? groupRows.map((r) => ({ name: isWeekdayXAxis ? getWeekdayName(r.x) : r.x, value: parseFloat(r.y) })).sort((a, b) => b.value - a.value)
-          : groupRows.map((r) => ({ value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, shouldAccumulate ? (accumulator += parseFloat(r.y)) : parseFloat(r.y)] })),
+          ? groupRows
+            .map((r) => ({
+              name: isWeekdayXAxis ? getWeekdayName(r.x) : r.x,
+              value: parseFloat(r.y),
+              itemStyle: r.style
+            })).sort((a, b) => b.value - a.value)
+          : groupRows
+            .map((r) => ({
+              value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, shouldAccumulate ? (accumulator += parseFloat(r.y)) : parseFloat(r.y)],
+              itemStyle: r.style
+            })),
         universalTransition: true
       })
 
@@ -403,7 +412,10 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
             : 'Error',
           renderItem: errorBoundRender,
           color: chart.barColor ?? DEFAULT_BAR_COLOR,
-          data: groupRows.map((r) => ({ value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)] })),
+          data: groupRows
+            .map((r) => ({
+              value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)]
+            })),
           itemStyle: {
             borderWidth: 1.5
           },
