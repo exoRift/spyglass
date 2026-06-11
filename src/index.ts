@@ -7,6 +7,8 @@ import type { Column } from 'knex-schema-inspector/dist/types/column'
 import open from 'open'
 import vm from 'vm'
 import os from 'os'
+import { spawnSync } from 'child_process'
+import fs from 'fs'
 import { openFileManagerDialog } from 'open-file-manager-dialog'
 
 import { type Chart, type Connection, Config } from './lib/config'
@@ -16,6 +18,46 @@ import * as logger from './lib/logger'
 import { changecwd } from './lib/depcache'
 import { dateBucket } from './lib/database'
 import pkg from '../package.json'
+
+logger.info('Starting Spyglass...')
+
+if (process.env.NODE_ENV === 'production') {
+  function openSync (path: string): void {
+    switch (process.platform) {
+      case 'darwin': spawnSync('open', [path]); break
+      case 'win32': spawnSync('cmd', ['/c', 'start', '', path]); break
+      default: spawnSync('xdg-open', [path]); break
+    }
+  }
+
+  const encoder = new TextEncoder()
+  const LOG_PATH = path.resolve(os.tmpdir(), `spyglass-${new Date().toISOString()}.log`)
+  const file = Bun.file(LOG_PATH)
+  const sink = file.writer()
+
+  const wrap = (orig: (...args: any[]) => void) =>
+    (...args: any[]) => {
+      const line = args.map((a) => (typeof a === 'string' ? Bun.stripANSI(a) : Bun.inspect(a, { colors: false }))).join(' ')
+      sink.write(encoder.encode(line + '\n'))
+      orig(...args)
+    }
+
+  console.log = wrap(console.log.bind(console))
+  console.error = wrap(console.error.bind(console))
+  console.warn = wrap(console.warn.bind(console))
+  console.debug = wrap(console.debug.bind(console)) // eslint-disable-line no-console
+  console.info = wrap(console.info.bind(console))
+
+  function onExit (code: number): void {
+    if (code) {
+      fs.appendFileSync(LOG_PATH, 'SPYGLASS HAS CRASHED! :(')
+      openSync(LOG_PATH)
+    }
+  }
+
+  process.on('beforeExit', onExit)
+  process.on('exit', onExit)
+}
 
 const args = util.parseArgs({
   args: process.argv,
