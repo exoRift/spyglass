@@ -511,7 +511,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
       <div
         ref={chartContainerRef}
-        className={twMerge('flex bg-base-300 w-full h-full min-w-1 min-h-1 select-none', className)}
+        className={twMerge('flex bg-base-300 w-full h-full min-w-1 min-h-1 select-none rounded-[5px] *:rounded-[5px]', className)}
         onContextMenu={onContextMenu}
         onDoubleClick={(e) => e.stopPropagation()}
       />

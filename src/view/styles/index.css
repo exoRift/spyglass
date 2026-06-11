@@ -90,7 +90,7 @@ body {
   }
 
   #widget-placeholder {
-    @apply !bg-accent/20 !border-0;
+    @apply bg-accent/20! border-0!;
   }
 }
 

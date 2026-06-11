@@ -15,14 +15,14 @@ const ICON_PATH = path.resolve(import.meta.dirname, '../src/assets/logo.png')
 const ICON_SIZES = [16, 32, 48, 64, 128, 256]
 
 async function getResizedIcons (sourceFile: string, sizes: number[]): Promise<Buffer[]> {
-  const img = await Bun.file(sourceFile).image()
+  const img = Bun.file(sourceFile).image()
 
   const buffers: Buffer[] = []
 
   for (const size of sizes) {
     const resized = img.resize(size, size)
 
-    const png = await resized.png()
+    const png = resized.png()
     buffers.push(await png.buffer())
   }
 

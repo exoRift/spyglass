@@ -277,7 +277,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             <span className='label-text'>Datapoint Method</span>
           </label>
           <Select value={editedChart.method.type} onChange={(e) => editChart('method.type', e.currentTarget.value as ChartConfig['method']['type'])} className='w-full' id='method' name='method'>
-            <Select.Option value='column'>Column Value</Select.Option>
+            <Select.Option value='value'>Column Value</Select.Option>
             <Select.Option value='aggregate_count'>Aggregate by Count</Select.Option>
             <Select.Option value='aggregate_count_unique'>Aggregate by Unique Count</Select.Option>
             <Select.Option value='aggregate_sum'>Aggregate by Sum</Select.Option>
@@ -561,7 +561,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
 
             <div className='fieldset'>
               <label htmlFor='sortDesc' className='label'>
-                <span className='label-text'>Sort</span>
+                <span className='label-text invisible'>Sort</span>
               </label>
               <label htmlFor='sortDesc' className='relative checkbox size-10 join-item'>
                 <input type='checkbox' hidden className='absolute' disabled={!editedChart.table} defaultChecked={editedChart.sortDesc || false} onChange={(e) => editChart('sortDesc', e.currentTarget.checked || undefined)} id='sortDesc' name='sortDesc' />

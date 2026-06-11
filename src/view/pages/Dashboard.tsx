@@ -11,6 +11,7 @@ import { Chart } from '../components/Chart'
 import { ChartEditPane } from '../components/ChartEditPane'
 
 import { MdArrowLeft, MdCable, MdDelete, MdFileCopy, MdSave, MdWarning } from 'react-icons/md'
+import { VscDiscard } from 'react-icons/vsc'
 import 'dashup/style.css'
 
 export default function Dashboard ({ navigate, connIndex }: { navigate: typeof renderRoute, connIndex: number }): React.ReactNode {
@@ -165,7 +166,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         </div>
       </Alert>
 
-      <header className='flex gap-4 items-center bg-base-300 transition-colors p-2 px-4'>
+      <header className='flex gap-4 items-center justify-between bg-base-300 transition-colors p-2 px-4'>
         <Button
           variant='link'
           className='text-primary px-0'
@@ -181,15 +182,22 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
           Back
         </Button>
 
-        <Button onClick={save} color='secondary' className={twMerge('transition opacity-0 ml-auto pointer-events-none', isUnsaved && 'animate-pulse opacity-100 pointer-events-auto z-40', editing !== null && 'translate-x-[-25rem]')}>
-          <MdSave className='text-xl' />
-          Save
-        </Button>
+        <div className={twMerge('flex gap-2 transition opacity-0 pointer-events-none', isUnsaved && 'opacity-100 pointer-events-auto z-40', editing !== null && '-translate-x-96')}>
+          <Button onClick={restoreConfig} color='neutral' className='brightness-75'>
+            <VscDiscard className='text-xl' />
+            Revert
+          </Button>
+
+          <Button onClick={save} color='success' className='not-hover:animate-pulse'>
+            <MdSave className='text-xl' />
+            Save
+          </Button>
+        </div>
       </header>
 
-      <div id='dash-scroller' className={twMerge('transition duration-700 h-0 grow overflow-auto dark:[&_.resizable-handle]:!invert [&_.dashup-widget]:bg-base-200 [&_[data-last-edited]]:!z-20 [&_.dashup-widget_.wrapper]:!overflow-visible [&_.dashup-widget]:!overflow-visible [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&:not(:has(.dragging))_.dashup-widget:hover]:!z-30 opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
-        <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:!h-full [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
-          <Dash widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='!transition-none' onChange={updateWidgets} />
+      <div id='dash-scroller' className={twMerge('transition duration-700 h-0 grow overflow-auto dark:[&_.resizable-handle]:invert! [&_.dashup-widget]:bg-base-200 **:data-last-edited:z-20! [&_.dashup-widget_.wrapper]:overflow-visible! [&_.dashup-widget]:overflow-visible! [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&:not(:has(.dragging))_.dashup-widget:hover]:z-30! opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
+        <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:h-full! [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
+          <Dash widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='transition-none!' onChange={updateWidgets} />
           <div className={twMerge('transition fixed min-h-screen inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
         </div>
       </div>

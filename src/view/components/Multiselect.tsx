@@ -45,7 +45,7 @@ export function Multiselect ({
   }, [checked, forcedValue])
 
   return (
-    <Dropdown className='has-[>:disabled]:!pointer-events-none'>
+    <Dropdown className='has-[>:disabled]:pointer-events-none!'>
       {Boolean(name) && (
         <div className='hidden'>
           {Array.from(checked).map((v) => <input type='hidden' name={name} value={v} key={v} />)}
