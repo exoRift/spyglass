@@ -175,8 +175,8 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         <label htmlFor='title' className='label'>
           <span className='label-text'>Title</span>
         </label>
-        <Input defaultValue={editedChart.title} onChange={(e) => editChart('title', e.currentTarget.value)} className='w-full' id='title' name='title' />
-        <Input size='sm' defaultValue={editedChart.subtitle} onChange={(e) => editChart('subtitle', e.currentTarget.value)} className='w-full' id='subtitle' name='subtitle' placeholder='Subtitle...' />
+        <Input value={editedChart.title} onChange={(e) => editChart('title', e.currentTarget.value)} className='w-full' id='title' name='title' />
+        <Input size='sm' value={editedChart.subtitle} onChange={(e) => editChart('subtitle', e.currentTarget.value)} className='w-full' id='subtitle' name='subtitle' placeholder='Subtitle...' />
       </div>
 
       <div className='fieldset w-full'>
@@ -306,7 +306,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                 <label htmlFor='xTitle' className='label'>
                   <span className='label-text'>X Axis Title</span>
                 </label>
-                <Input defaultValue={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
+                <Input value={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
               </div>
 
               <div className='fieldset w-full'>
@@ -375,7 +375,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                 <label htmlFor='yTitle' className='label'>
                   <span className='label-text'>Y Axis Title</span>
                 </label>
-                <Input defaultValue={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
+                <Input value={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
               </div>
 
               <div className='fieldset w-full'>
@@ -442,7 +442,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
               <label htmlFor='customColumns' className='label'>
                 <span className='label-text'>Columns to Query</span>
               </label>
-              <Multiselect disabled={!editedChart.table} defaultValue={editedChart.method.columns} onValueChange={(v) => editChart('method.columns', v)} className='w-full' color='ghost' unit='column' id='customColumns' name='customColumns'>
+              <Multiselect disabled={!editedChart.table} value={editedChart.method.columns} onValueChange={(v) => editChart('method.columns', v)} className='w-full' color='ghost' unit='column' id='customColumns' name='customColumns'>
                 {(usableColumns?.map((c) => (
                   <Multiselect.Option value={c.identifier} key={c.identifier}>{c.display_name.replaceAll('.', '_')}</Multiselect.Option>
                 )))}
@@ -469,7 +469,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
 
         {editedChart.method.type !== 'custom' && editedChart.style !== 'pie' && (
           <div className='flex items-center gap-2 fieldset w-full'>
-            <Toggle size='xs' color='primary' defaultChecked={editedChart.cumulative ?? false} onChange={(e) => editChart('cumulative', e.currentTarget.checked || undefined)} name='cumulative' id='cumulative' />
+            <Toggle size='xs' color='primary' checked={editedChart.cumulative ?? false} onChange={(e) => editChart('cumulative', e.currentTarget.checked || undefined)} name='cumulative' id='cumulative' />
             <label htmlFor='cumulative' className='label transition [:checked+&]:text-primary'>
               <span className='label-text'>Cumulative</span>
             </label>
@@ -481,14 +481,14 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         <label htmlFor='where' className='label'>
           <span className='label-text'>Filter</span>
         </label>
-        <DebouncedInput delay={500} placeholder='Raw SQL WHERE Clause...' defaultValue={editedChart.where ?? ''} onDebouncedChange={(v) => editChart('where', v)} className='w-full' id='where' name='where' />
+        <DebouncedInput delay={500} placeholder='Raw SQL WHERE Clause...' value={editedChart.where ?? ''} onDebouncedChange={(v) => editChart('where', v)} className='w-full' id='where' name='where' />
       </div>
 
       <div className='fieldset w-full'>
         <div className={twMerge('flex items-start justify-between gap-4', (editedChart.style === 'pie' || editedChart.method.type === 'custom') && 'justify-end')}>
           {editedChart.style !== 'pie' && editedChart.method.type !== 'custom' && (
             <div className='flex items-center gap-2'>
-              <Toggle size='xs' color='secondary' defaultChecked={editedChart.breakdown !== undefined} onChange={(e) => editChart('breakdown', e.currentTarget.checked ? null : undefined)} id='breakdown_toggle' name='breakdown_toggle' />
+              <Toggle size='xs' color='secondary' checked={editedChart.breakdown !== undefined} onChange={(e) => editChart('breakdown', e.currentTarget.checked ? null : undefined)} id='breakdown_toggle' name='breakdown_toggle' />
               <label className='label [:checked+&]:text-secondary transition-colors' htmlFor='breakdown_toggle'>
                 <span className='label-text'>Breakdown</span>
               </label>
@@ -538,7 +538,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           <label htmlFor='limit' className='label'>
             <span className='label-text'>Row Limit</span>
           </label>
-          <DebouncedInput type='number' min={1} delay={500} placeholder='No Limit' defaultValue={editedChart.limit} onChange={(e) => e.currentTarget.reportValidity()} onDebouncedChange={(v) => editChart('limit', v ? parseInt(v) : undefined)} className='w-full invalid:input-error' id='limit' name='limit' />
+          <DebouncedInput type='number' min={1} delay={500} placeholder='No Limit' value={editedChart.limit?.toString() ?? ''} onChange={(e) => e.currentTarget.reportValidity()} onDebouncedChange={(v) => editChart('limit', v ? parseInt(v) : undefined)} className='w-full invalid:input-error' id='limit' name='limit' />
         </div>
 
         {editedChart.method.type !== 'custom' && (
@@ -564,7 +564,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                 <span className='label-text invisible'>Sort</span>
               </label>
               <label htmlFor='sortDesc' className='relative checkbox size-10 join-item'>
-                <input type='checkbox' hidden className='absolute' disabled={!editedChart.table} defaultChecked={editedChart.sortDesc || false} onChange={(e) => editChart('sortDesc', e.currentTarget.checked || undefined)} id='sortDesc' name='sortDesc' />
+                <input type='checkbox' hidden className='absolute' disabled={!editedChart.table} checked={editedChart.sortDesc ?? false} onChange={(e) => editChart('sortDesc', e.currentTarget.checked || undefined)} id='sortDesc' name='sortDesc' />
                 <MdArrowUpward className='transition [:has(:checked)>&]:-scale-y-100 absolute inset-0 size-full p-2' />
               </label>
             </div>
