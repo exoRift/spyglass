@@ -22,11 +22,11 @@ import pkg from '../package.json'
 logger.info('Starting Spyglass...')
 
 if (process.env.NODE_ENV === 'production') {
-  function openSync (path: string): void {
+  function openSync (url: string): void {
     switch (process.platform) {
-      case 'darwin': spawnSync('open', [path]); break
-      case 'win32': spawnSync('cmd', ['/c', 'start', '', path]); break
-      default: spawnSync('xdg-open', [path]); break
+      case 'darwin': spawnSync('open', [url]); break
+      case 'win32': spawnSync('cmd', ['/c', 'start', '', url]); break
+      default: spawnSync('xdg-open', [url]); break
     }
   }
 
@@ -38,7 +38,7 @@ if (process.env.NODE_ENV === 'production') {
   const wrap = (orig: (...args: any[]) => void) =>
     (...args: any[]) => {
       const line = args.map((a) => (typeof a === 'string' ? Bun.stripANSI(a) : Bun.inspect(a, { colors: false }))).join(' ')
-      sink.write(encoder.encode(line + '\n'))
+      void sink.write(encoder.encode(line + '\n'))
       orig(...args)
     }
 

@@ -38,6 +38,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       ...c.pos,
       component: (
         <Chart
+          key={c.id}
           chart={c}
           tables={tables}
           canQuery={connected}
@@ -91,9 +92,13 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
   }, [connection])
 
   const updateWidgets = useCallback((widgets: Layout) => {
+    // Dashup doesn't do proper memoization in regards to passed event handlers so when we update our object references (i.e., `restoreConfig`),
+    // We need to use the global and not the render instance
+    const globalConnection = window._config.connections[connIndex]!
+
     for (let w = 0; w < widgets.length; ++w) {
       const widget = widgets[w]!
-      if (!connection.charts[w]) continue
+      if (!globalConnection.charts[w]) continue
 
       const newPos = {
         x: widget.x,
@@ -102,10 +107,10 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         height: widget.height
       }
 
-      Object.assign(connection.charts[w]!.pos, newPos)
+      Object.assign(globalConnection.charts[w]!.pos, newPos)
       setIsUnsaved(true)
     }
-  }, [connection])
+  }, [connIndex])
 
   const save = useCallback(() => {
     void window.saveConfig(config)
