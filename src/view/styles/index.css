@@ -15,6 +15,7 @@
   --color-primary: oklch(70% 0.165 254.624);
   --color-secondary: oklch(67% 0.182 276.935);
   --color-accent: oklch(55% 0.046 257.417);
+  --color-accent-content: oklch(83.923% 0.012 257.651);
   --color-neutral: oklch(19.616% 0.063 257.651);
   --color-neutral-content: oklch(83.923% 0.012 257.651);
   --color-info: oklch(68.455% 0.148 237.251);
@@ -68,11 +69,9 @@ html {
   @apply transition-colors duration-300;
 }
 
-
 html, html * {
   scrollbar-gutter: auto !important;
 }
-
 
 body {
   @apply transition-colors h-screen overflow-x-clip;

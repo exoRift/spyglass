@@ -177,12 +177,13 @@ const binds = {
   getConfigLocation (): string {
     return CONFIG_LOCATION
   },
-  // TODO: Assign schema link
   async saveConfig (cfg: Config): Promise<null | type.errors> {
     const parsed = Config(cfg)
     if (parsed instanceof type.errors) return parsed
     Object.assign(config, parsed)
-    return await Bun.write(CONFIG_LOCATION, JSON.stringify(config, null, 2))
+
+    ;(parsed as any).$schema = `https://raw.githubusercontent.com/exoRift/spyglass/refs/tags/v${pkg.version}/schema/config.json`
+    return await Bun.write(CONFIG_LOCATION, JSON.stringify(parsed, null, 2))
       .then(() => null)
       .catch((err) => {
         logger.error('FAILED TO SAVE CONFIG!', err)

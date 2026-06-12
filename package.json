@@ -1,9 +1,21 @@
 {
   "name": "spyglass",
-  "module": "index.ts",
-  "type": "module",
+  "author": {
+    "name": "Arthur Neuman",
+    "url": "https://github.com/exoRift"
+  },
   "homepage": "https://github.com/exoRift/spyglass",
+  "description": "A database visualization dashboard for easy insights and analytics into business metrics",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/exoRift/spyglass.git"
+  },
+  "keywords": ["database", "visualizer", "powerbi"],
+  "license": "Apache-2.0",
+  "type": "module",
+  "module": "index.ts",
+  "main": "index.ts",
   "scripts": {
     "dev": "bun run --watch --console-depth=100 src/index.ts",
     "prebuild": "bun run update-schema",

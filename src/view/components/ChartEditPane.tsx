@@ -338,7 +338,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             </Tooltip>
           </div>
 
-          <details id='expressions' open={!editedChart.table ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-32 open:opacity-100 open:bg-base-300/20 overflow-auto scrollbar-gutter-stable'>
+          <details id='expressions' open={!editedChart.table ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-32 open:opacity-100 open:bg-base-300/20 overflow-auto scrollbar-gutter-stable!'>
             <summary className='hidden' />
 
             <div className='transition-all transition-discrete hidden [:open>&]:block gap-4 starting:scale-75 scale-100 px-4 py-2 space-y-2'>

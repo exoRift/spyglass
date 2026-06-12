@@ -2,6 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string"
+    },
     "connections": {
       "type": "array",
       "items": {
@@ -259,6 +262,12 @@
                 "cumulative": {
                   "const": true
                 },
+                "expressions": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
                 "joins": {
                   "type": "array",
                   "items": {
@@ -451,5 +460,7 @@
       "default": "system"
     }
   },
-  "additionalProperties": false
+  "required": [
+    "$schema"
+  ]
 }
