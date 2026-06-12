@@ -11,6 +11,7 @@ import pkg from '../package.json'
 
 // ========= DEFINITIONS =========
 
+const BUILD_OUTPUT_PATH = path.resolve(import.meta.dirname, '../build')
 const ICON_PATH = path.resolve(import.meta.dirname, '../src/assets/logo.png')
 const ICON_SIZES = [16, 32, 48, 64, 128, 256]
 
@@ -144,7 +145,7 @@ async function createIco ({
 const iconPromise = process.platform === 'win32'
   ? createIco({
     sourceFile: ICON_PATH,
-    outFile: path.resolve(import.meta.dirname, '../build/icon.ico')
+    outFile: path.resolve(BUILD_OUTPUT_PATH, 'icon.ico')
   })
     .catch((err) => {
       console.error(styleText('red', 'Failed to create Windows .ico file'), err)
@@ -196,7 +197,9 @@ const result = await Bun.build({
   keepNames: true, // Required for Knex client identification
 
   sourcemap: 'external',
+  metafile: true,
 
+  target: 'bun',
   compile: {
     autoloadPackageJson: true,
     execArgv: ['--console-depth=100', '--no-orphans'],
@@ -204,7 +207,7 @@ const result = await Bun.build({
     windows: process.platform === 'win32'
       ? {
         hideConsole: true,
-        icon: path.resolve(import.meta.dirname, '../build/icon.ico')
+        icon: path.resolve(BUILD_OUTPUT_PATH, 'icon.ico')
       }
       : undefined
   }
@@ -219,16 +222,23 @@ if (!result.success) {
   process.exit(1)
 }
 
+// https://esbuild.github.io/analyze
+if (result.metafile) {
+  Bun.write(path.resolve(BUILD_OUTPUT_PATH, 'meta.json'), JSON.stringify(result.metafile))
+    .then(() => console.info(styleText('blue', 'Metafile written')))
+    .catch((err) => console.error(styleText('red', 'Failed to write metafile:'), err))
+} else console.warn(styleText('yellow', 'No metafile was written'))
+
 console.info(styleText('green', 'Executable built'))
 
 if (process.platform === 'darwin') {
   await createMacApp({
     appName: 'Spyglass',
-    binaryPath: path.resolve(import.meta.dirname, '../build/spyglass'),
+    binaryPath: path.resolve(BUILD_OUTPUT_PATH, 'spyglass'),
     bundleId: 'com.github.exoRift.spyglass',
     version: pkg.version,
     signIdentity: undefined,
-    outDir: path.resolve(import.meta.dirname, '../build')
+    outDir: BUILD_OUTPUT_PATH
   })
     .catch((err) => {
       console.error(styleText('red', 'Failed to build Mac .app bundle'), err)
