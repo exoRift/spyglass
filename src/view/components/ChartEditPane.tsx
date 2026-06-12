@@ -14,6 +14,7 @@ import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 
 import { MdDelete, MdHelp, MdArrowUpward, MdAdd, MdSettings } from 'react-icons/md'
+import { IoMdArrowDropdown } from 'react-icons/io'
 
 type Widen<T> = {
   [K in keyof T]: T[K] extends string ? string : T[K]
@@ -96,17 +97,19 @@ function MapFunctionHelpButton (): React.ReactNode {
   )
 }
 
+function removeFancyCharacters (string: string): string {
+  return string
+    .replace(/[\u2014]/g, '--')        // emdash
+    .replace(/[\u2022]/g, '*')         // bullet
+    .replace(/[\u2018\u2019]/g, "'")   // smart single quotes
+    .replace(/[\u201C\u201D]/g, '"')   // smart double quotes
+}
+
 export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial<Record<string, Column[]>> | null, editedChart: ChartConfig, error?: Error }): React.ReactNode {
   const { result: isForgeInstalled = true } = usePromise(() => () => window.hasDataForge(), [])
 
   const editChart = useCallback(<T extends FlattenObjectKeys<ChartConfig>> (field: T, value: NestedAccess<ChartConfig, T>): void => {
-    if (typeof value === 'string') {
-      value = value
-        .replace(/[\u2014]/g, '--')               // emdash
-        .replace(/[\u2022]/g, '*')                // bullet
-        .replace(/[\u2018\u2019]/g, "'")          // smart single quotes
-        .replace(/[\u201C\u201D]/g, '"') as any   // smart double quotes
-    }
+    if (typeof value === 'string') value = removeFancyCharacters(value) as any
 
     if (field === 'table') {
       if ('x' in editedChart.method) editedChart.method.x = null
@@ -159,12 +162,35 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       if (table) columns = columns.concat(table)
     }
 
+    if (editedChart.expressions) {
+      columns = columns.concat(editedChart.expressions.map((e) => ({
+        name: e,
+        data_type: 'expression',
+        default_value: null,
+        foreign_key_column: null,
+        foreign_key_table: null,
+        has_auto_increment: false,
+        is_generated: true,
+        is_nullable: true,
+        is_primary_key: false,
+        is_unique: false,
+        max_length: null,
+        table: editedChart.table!,
+        numeric_precision: 0, // Enable number features
+        numeric_scale: null,
+        comment: null,
+        foreign_key_schema: null,
+        generation_expression: e,
+        schema: tables[editedChart.table!]![0]?.schema
+      })))
+    }
+
     return columns.map((c) => ({
       ...c,
-      identifier: getColumnIdentifier(c),
-      display_name: getColumnNonConflictName(c, columns)
+      identifier: c.data_type === 'expression' ? `~expr:${c.name}` : getColumnIdentifier(c),
+      display_name: c.data_type === 'expression' ? c.name : getColumnNonConflictName(c, columns)
     }))
-  }, [tables, editedChart.table, editedChart.joins, +editedChart])
+  }, [tables, editedChart.table, editedChart.joins, editedChart.expressions, +editedChart])
 
   const xColumn = 'x' in editedChart.method ? usableColumns?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method).x) : undefined
   const yColumn = 'y' in editedChart.method ? usableColumns?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method).y) : undefined
@@ -194,7 +220,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         <div className='fieldset w-full'>
           {Boolean(editedChart.joins?.length) && (
             <Divider vertical>
-              <span className='text-sm'>Table Joins</span>
+              <span className='text-sm font-semibold'>Table Joins</span>
             </Divider>
           )}
 
@@ -299,6 +325,73 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       </div>
 
       <div className='space-y-2 border-y border-base-content/50 rounded-sm py-2'>
+        <div className='w-full'>
+          <div className='flex items-center gap-2'>
+            <Button disabled={!editedChart.table} className='grow' size='xs' color='accent' onClick={() => { const details = document.getElementById('expressions') as HTMLDetailsElement; details.open = !details.open }}>
+              <IoMdArrowDropdown className='transition text-xl [:has(>*>&):has(+:open)_&]:rotate-0 -rotate-90' />
+              Column Expressions
+              <IoMdArrowDropdown className='transition text-xl [:has(>*>&):has(+:open)_&]:rotate-0 rotate-90' />
+            </Button>
+
+            <Tooltip position='left' className='cursor-help' message='Define raw SQL snippets that can be used in any field that normally takes a column'>
+              <MdHelp className='text-lg' />
+            </Tooltip>
+          </div>
+
+          <details id='expressions' open={!editedChart.table ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-32 open:opacity-100 open:bg-base-300/20 overflow-auto scrollbar-gutter-stable'>
+            <summary className='hidden' />
+
+            <div className='transition-all transition-discrete hidden [:open>&]:block gap-4 starting:scale-75 scale-100 px-4 py-2 space-y-2'>
+              {editedChart.expressions?.map((e, i) => (
+                <div key={e} className='flex gap-2'>
+                  <code className='grow bg-base-300 p-1 text-mono text-xs overflow-auto'>{e}</code>
+
+                  <button className='cursor-pointer' title='Remove' onClick={() => { editedChart.expressions?.splice(i, 1); if (!editedChart.expressions?.length) editedChart.expressions = undefined }}>
+                    <MdDelete className='text-base text-error' />
+                  </button>
+                </div>
+              ))}
+
+              <div className='flex join join-horizontal'>
+                <Input
+                  placeholder='Add Expression (Raw SQL)...'
+                  size='xs'
+                  className='join-item font-mono invalid:input-error'
+                  onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.nextElementSibling as HTMLButtonElement).click()}
+                  onChange={(e) => e.currentTarget.setCustomValidity('')}
+                />
+
+                <Button
+                  color='primary'
+                  size='xs'
+                  title='Add'
+                  className='join-item'
+                  onClick={(e) => {
+                    const input = (e.currentTarget.previousElementSibling) as HTMLInputElement
+                    if (!input.value) return
+
+                    if (editedChart.expressions?.includes(input.value)) {
+                      input.setCustomValidity('This expression is already in the list')
+                      input.reportValidity()
+                      return
+                    } else if (usableColumns?.some((c) => c.display_name === input.value)) {
+                      input.setCustomValidity('Expression cannot be a column name')
+                      input.reportValidity()
+                      return
+                    }
+
+                    editedChart.expressions ??= []
+                    editedChart.expressions.push(removeFancyCharacters(input.value))
+                    input.value = ''
+                  }}
+                >
+                  <MdAdd className='text-lg' />
+                </Button>
+              </div>
+            </div>
+          </details>
+        </div>
+
         {editedChart.method.type !== 'custom' && (
           <section className='space-y-1'>
             <div className='flex gap-4 *:grow'>
@@ -327,12 +420,12 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                   <span className='label-text'>S</span>
                 </label>
 
-                <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={Boolean(xColumn?.data_type.match(/date|time/)) || typeof xColumn?.numeric_precision !== 'number'}>
-                  <MdSettings className='text-2xl transition not:disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
+                <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision !== 'number'}>
+                  <MdSettings className='text-2xl transition not-disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
                 </button>
               </div>
             </div>
-            <details id='xSettings' open={!editedChart.table ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+            <details id='xSettings' open={!editedChart.table || (!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision !== 'number') ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
               <summary className='hidden' />
 
               <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
@@ -397,12 +490,12 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                 </label>
 
                 <button onClick={() => { const details = document.getElementById('ySettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number'}>
-                  <MdSettings className='text-2xl transition not:disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
+                  <MdSettings className='text-2xl transition not-disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
                 </button>
               </div>
             </div>
 
-            <details id='ySettings' open={!editedChart.table ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+            <details id='ySettings' open={!editedChart.table || Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number' ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
               <summary className='hidden' />
 
               <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>

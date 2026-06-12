@@ -263,6 +263,7 @@ const binds = {
       return null
     }
 
+    // TODO: support ~expr
     const validJoins = chart.joins?.filter((j) => j.baseColumn && j.foreignColumn) ?? []
 
     const query = activeConnection(chart.table)

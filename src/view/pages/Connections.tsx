@@ -6,14 +6,14 @@ import { useObject } from 'react-exo-hooks'
 import type { renderRoute } from '../index'
 
 import { Badge, Button, Form, Input, Modal, Select, Table, Toggle, Tooltip } from 'react-daisyui'
+import { PasswordInput } from '../components/PasswordInput'
+import { NativeFileInput } from '../components/NativeFileInput'
 
 import type { Config, Connection } from '../../lib/config'
 
 import logo from '../../assets/logo.png'
 import { MdAdd, MdBuild, MdInfo, MdEdit, MdDelete, MdFileCopy, MdWarning } from 'react-icons/md'
 import pkg from '../../../package.json' with { type: 'json' }
-import { PasswordInput } from '../components/PasswordInput'
-import { NativeFileInput } from '../components/NativeFileInput'
 
 const DB_CLIENT_DISPLAYNAME_MAP: Record<Connection['details']['client'], string> = {
   postgres: 'Postgres',
@@ -523,7 +523,10 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
         <ConfigLoadFailureGuard />
       </div>
 
-      <footer className='text-end text-base-content/50 text-xs pr-1 pb-1'>{`Config Location: ${window._configLocation}`}</footer>
+      <footer className='flex justify-between text-base-content/50 text-xs p-1'>
+        <dd>{`Spyglass (Version ${pkg.version})`}</dd>
+        <dd>{`Config Location: ${window._configLocation}`}</dd>
+      </footer>
     </>
   )
 }
