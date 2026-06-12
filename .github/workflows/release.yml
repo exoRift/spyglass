@@ -1,0 +1,78 @@
+name: Build and Attach Release Binaries
+
+permissions:
+  contents: write
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-26.04
+            name: linux
+            artifact: spyglass-linux
+
+          - os: macos-26
+            name: macos
+            artifact: spyglass-macos
+
+          - os: windows-2025
+            name: windows
+            artifact: spyglass-windows
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        shell: bash
+        run: bun run build
+
+      - name: Prepare artifact
+        shell: bash
+        run: |
+          mkdir -p release
+
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp ./build/spyglass.exe ./release/${{ matrix.artifact }}.exe
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            cp ./build/spyglass.app ./release/${{ matrix.artifact }}.app
+          else
+            cp ./build/spyglass ./release/${{ matrix.artifact }}
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/*
+
+  publish:
+    name: Attach Assets To Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
