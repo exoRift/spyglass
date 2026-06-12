@@ -257,13 +257,24 @@ const binds = {
         return null
       })
   },
-  async queryRows (chart: Pick<Chart, 'table' | 'where' | 'joins' | 'limit' | 'sortCol' | 'sortDesc' | 'method' | 'breakdown'> & { table: string }): Promise<any[] | null | string> {
+  async queryRows (chart: Chart & { table: string }): Promise<any[] | null | string> {
     if (!activeConnection) {
       logger.error('Attempted to query without an active connection')
       return null
     }
 
-    // TODO: support ~expr
+    /**
+     * Resolve a column into a column name or an expression
+     * @warn Assumes activeConnection !== null
+     * @param column The column name/expression
+     * @returns The column name or expression
+     */
+    function resolveColumn (column: string): string | Knex.Knex.Raw {
+      return column.startsWith('~expr:')
+        ? activeConnection!.raw(chart.expressions?.[column.slice('~expr:'.length)] ?? '0')
+        : column
+    }
+
     const validJoins = chart.joins?.filter((j) => j.baseColumn && j.foreignColumn) ?? []
 
     const query = activeConnection(chart.table)
@@ -280,8 +291,8 @@ const binds = {
         if (chart.method.x && chart.method.y) {
           didSelect = true
           query.select({
-            x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
-            y: chart.method.y
+            x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, resolveColumn(chart.method.x)) : resolveColumn(chart.method.x),
+            y: resolveColumn(chart.method.y)
           })
         }
         break
@@ -290,8 +301,8 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
-              y: activeConnection.count(chart.method.x)
+              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, resolveColumn(chart.method.x)) : resolveColumn(chart.method.x),
+              y: activeConnection.count(resolveColumn(chart.method.x))
             })
             .groupBy('x')
         }
@@ -301,8 +312,8 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
-              y: activeConnection.countDistinct(chart.method.y)
+              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, resolveColumn(chart.method.x)) : resolveColumn(chart.method.x),
+              y: activeConnection.countDistinct(resolveColumn(chart.method.y))
             })
             .groupBy('x')
         }
@@ -312,8 +323,8 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
-              y: activeConnection.avg(chart.method.y)
+              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, resolveColumn(chart.method.x)) : resolveColumn(chart.method.x),
+              y: activeConnection.avg(resolveColumn(chart.method.y))
             })
             .groupBy('x')
 
@@ -321,15 +332,15 @@ const binds = {
             case 'stddev':
               query
                 .select({
-                  lowBar: activeConnection.raw('? - STDDEV(??)', [activeConnection.avg(chart.method.y), chart.method.y]),
-                  highBar: activeConnection.raw('? + STDDEV(??)', [activeConnection.avg(chart.method.y), chart.method.y])
+                  lowBar: activeConnection.raw('? - STDDEV(??)', [activeConnection.avg(resolveColumn(chart.method.y)), resolveColumn(chart.method.y)]),
+                  highBar: activeConnection.raw('? + STDDEV(??)', [activeConnection.avg(resolveColumn(chart.method.y)), resolveColumn(chart.method.y)])
                 })
               break
             case 'minmax':
               query
                 .select({
-                  lowBar: activeConnection.min(chart.method.y),
-                  highBar: activeConnection.max(chart.method.y)
+                  lowBar: activeConnection.min(resolveColumn(chart.method.y)),
+                  highBar: activeConnection.max(resolveColumn(chart.method.y))
                 })
               break
             case null: break
@@ -341,8 +352,8 @@ const binds = {
           didSelect = true
           query
             .select({
-              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, chart.method.x) : chart.method.x,
-              y: activeConnection.sum(chart.method.y)
+              x: chart.method.xTimeBin ? dateBucket(activeConnection, chart.method.xTimeBin, resolveColumn(chart.method.x)) : resolveColumn(chart.method.x),
+              y: activeConnection.sum(resolveColumn(chart.method.y))
             })
             .groupBy('x')
         }
@@ -360,12 +371,15 @@ const binds = {
           didSelect = true
           query
             .select(chart.method.columns.map((c) =>
-              activeConnection!
-                .column(c)
-                .as(
-                  getColumnNonConflictName(columns.find((col) => getColumnIdentifier(col) === c)!, columns)
-                    .replaceAll('.', '_')
-                ))
+              c.startsWith('~expr:')
+                ? activeConnection!
+                  .column(activeConnection!.raw(chart.expressions?.[c.slice('~expr:'.length)] ?? '0')).as(c.slice('~expr:'.length))
+                : activeConnection!
+                  .column(c)
+                  .as(
+                    getColumnNonConflictName(columns.find((col) => getColumnIdentifier(col) === c)!, columns)
+                      .replaceAll('.', '_')
+                  ))
             )
         }
         break
@@ -379,7 +393,18 @@ const binds = {
       if (chart.method.type.includes('aggregate')) query.groupBy('group')
     }
 
-    if (chart.sortCol) query.orderBy(chart.sortCol === '~aggregation' ? 'y' : 'x' in chart.method && chart.sortCol === chart.method.x ? 'x' : chart.sortCol, chart.sortDesc ? 'desc' : 'asc')
+    if (chart.sortCol) {
+      query.orderBy(
+        chart.sortCol === '~aggregation' || ('y' in chart.method && chart.sortCol === chart.method.y)
+          ? 'y'
+          : 'x' in chart.method && chart.sortCol === chart.method.x
+            ? 'x'
+            : resolveColumn(chart.sortCol) as unknown as Knex.Knex.QueryBuilder,
+        chart.sortDesc
+          ? 'desc'
+          : 'asc'
+      )
+    }
     if (chart.limit) query.limit(chart.limit)
 
     return await query

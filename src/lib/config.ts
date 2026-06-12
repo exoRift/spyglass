@@ -51,7 +51,7 @@ const Chart = type({
       fn: 'string'
     })
   ),
-  'expressions?': 'string[]',
+  'expressions?': 'Record<string, string>',
   'breakdown?': 'string | null',
   'cumulative?': 'true',
   'traceColors?': 'string[]',

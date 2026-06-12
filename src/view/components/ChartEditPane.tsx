@@ -163,8 +163,8 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
     }
 
     if (editedChart.expressions) {
-      columns = columns.concat(editedChart.expressions.map((e) => ({
-        name: e,
+      columns = columns.concat(Object.entries(editedChart.expressions).map(([name, expression]) => ({
+        name,
         data_type: 'expression',
         default_value: null,
         foreign_key_column: null,
@@ -180,7 +180,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         numeric_scale: null,
         comment: null,
         foreign_key_schema: null,
-        generation_expression: e,
+        generation_expression: expression,
         schema: tables[editedChart.table!]![0]?.schema
       })))
     }
@@ -329,7 +329,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           <div className='flex items-center gap-2'>
             <Button disabled={!editedChart.table} className='grow' size='xs' color='accent' onClick={() => { const details = document.getElementById('expressions') as HTMLDetailsElement; details.open = !details.open }}>
               <IoMdArrowDropdown className='transition text-xl [:has(>*>&):has(+:open)_&]:rotate-0 -rotate-90' />
-              Column Expressions
+              Custom Expressions
               <IoMdArrowDropdown className='transition text-xl [:has(>*>&):has(+:open)_&]:rotate-0 rotate-90' />
             </Button>
 
@@ -342,52 +342,89 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             <summary className='hidden' />
 
             <div className='transition-all transition-discrete hidden [:open>&]:block gap-4 starting:scale-75 scale-100 px-4 py-2 space-y-2'>
-              {editedChart.expressions?.map((e, i) => (
-                <div key={e} className='flex gap-2'>
-                  <code className='grow bg-base-300 p-1 text-mono text-xs overflow-auto'>{e}</code>
+              {editedChart.expressions && Object.entries(editedChart.expressions).map(([name, expression]) => (
+                <div key={name} className='flex gap-2'>
+                  <dt className='p-1 text-xs font-semibold'>{name}</dt>
+                  <code className='grow bg-base-300 p-1 font-mono text-xs overflow-auto'>{expression}</code>
 
-                  <button className='cursor-pointer' title='Remove' onClick={() => { editedChart.expressions?.splice(i, 1); if (!editedChart.expressions?.length) editedChart.expressions = undefined }}>
+                  <button
+                    className='cursor-pointer'
+                    title='Remove'
+                    onClick={() => {
+                      delete editedChart.expressions![name]
+
+                      if (editedChart.breakdown === `~expr:${name}`) editedChart.breakdown = undefined
+                      if (editedChart.sortCol === `~expr:${name}`) editedChart.sortCol = undefined
+                      if ('x' in editedChart.method && editedChart.method.x === `~expr:${name}`) editedChart.method.x = null
+                      if ('y' in editedChart.method && editedChart.method.y === `~expr:${name}`) editedChart.method.y = null
+                      if (editedChart.method.type === 'custom') {
+                        const index = editedChart.method.columns.indexOf(`~expr:${name}`)
+                        if (index !== -1) editedChart.method.columns.splice(index, 1)
+                      }
+
+                      if (!Object.keys(editedChart.expressions).length) editedChart.expressions = undefined
+                    }}
+                  >
                     <MdDelete className='text-base text-error' />
                   </button>
                 </div>
               ))}
 
-              <div className='flex join join-horizontal'>
+              <form
+                className='flex join join-horizontal'
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const expressionInput = (document.getElementById('custom_expression_value')) as HTMLInputElement
+                  const nameInput = (document.getElementById('custom_expression_name')) as HTMLInputElement
+
+                  if (editedChart.expressions && Object.values(editedChart.expressions).includes(expressionInput.value)) {
+                    expressionInput.setCustomValidity('This expression is already in the list')
+                  } else if (usableColumns?.some((c) => c.display_name === expressionInput.value)) {
+                    expressionInput.setCustomValidity('Expression cannot be a column name')
+                  }
+
+                  if (editedChart.expressions && nameInput.value in editedChart.expressions) {
+                    nameInput.setCustomValidity('Name is already in use')
+                  } else if (usableColumns?.some((c) => c.display_name === nameInput.value)) {
+                    nameInput.setCustomValidity('Name cannot be a column name')
+                  }
+
+                  if (!e.currentTarget.reportValidity()) return
+
+                  editedChart.expressions ??= {}
+                  editedChart.expressions[nameInput.value] = removeFancyCharacters(expressionInput.value)
+                  e.currentTarget.reset()
+                }}
+              >
                 <Input
+                  id='custom_expression_name'
+                  name='custom_expression_name'
+                  placeholder='Name...'
+                  size='xs'
+                  className='join-item not-placeholder-shown:invalid:input-error w-16'
+                  required
+                  onChange={(e) => e.currentTarget.setCustomValidity('')}
+                />
+                <Input
+                  id='custom_expression_value'
+                  name='custom_expression_value'
                   placeholder='Add Expression (Raw SQL)...'
                   size='xs'
-                  className='join-item font-mono invalid:input-error'
-                  onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.nextElementSibling as HTMLButtonElement).click()}
+                  className='join-item font-mono not-placeholder-shown:invalid:input-error'
+                  required
                   onChange={(e) => e.currentTarget.setCustomValidity('')}
                 />
 
                 <Button
+                  type='submit'
                   color='primary'
                   size='xs'
                   title='Add'
                   className='join-item'
-                  onClick={(e) => {
-                    const input = (e.currentTarget.previousElementSibling) as HTMLInputElement
-                    if (!input.value) return
-
-                    if (editedChart.expressions?.includes(input.value)) {
-                      input.setCustomValidity('This expression is already in the list')
-                      input.reportValidity()
-                      return
-                    } else if (usableColumns?.some((c) => c.display_name === input.value)) {
-                      input.setCustomValidity('Expression cannot be a column name')
-                      input.reportValidity()
-                      return
-                    }
-
-                    editedChart.expressions ??= []
-                    editedChart.expressions.push(removeFancyCharacters(input.value))
-                    input.value = ''
-                  }}
                 >
                   <MdAdd className='text-lg' />
                 </Button>
-              </div>
+              </form>
             </div>
           </details>
         </div>

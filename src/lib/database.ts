@@ -18,7 +18,7 @@ import type { TIME_UNITS } from './constants'
 export function dateBucket (
   knex: Knex,
   unit: typeof TIME_UNITS[number],
-  column: string
+  column: string | Knex.Raw
 ): Knex.Raw {
   const client = knex.client.config.client
 
