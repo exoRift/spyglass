@@ -7,6 +7,18 @@ import { Dropdown, Checkbox, Select } from 'react-daisyui'
 
 type OptionProps = React.ComponentProps<typeof Select.Option>
 
+/**
+ * A multi-select input
+ * @param props
+ * @param props.name
+ * @param props.value
+ * @param props.defaultValue
+ * @param props.disabled
+ * @param props.unit          A unit to display in the select value for what is being selected
+ * @param props.onValueChange
+ * @param props.children
+ * @param props.className
+ */
 export function Multiselect ({
   name,
   value: forcedValue,

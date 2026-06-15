@@ -4,6 +4,10 @@ declare global {
 
 const PORT = parseInt(window.SHIM_PORT)
 
+/**
+ * When in development, it's easier to debug in a browser than a webview.\
+ * Initialize a shim that replaces the webview binds with API calls
+ */
 export async function init (): Promise<void> {
   return void await Promise.all([
     fetch(`http://localhost:${PORT}/_binds`)

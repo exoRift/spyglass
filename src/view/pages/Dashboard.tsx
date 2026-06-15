@@ -14,6 +14,12 @@ import { MdArrowLeft, MdCable, MdDelete, MdFileCopy, MdSave, MdWarning } from 'r
 import { VscDiscard } from 'react-icons/vsc'
 import 'dashup/style.css'
 
+/**
+ * The dashboard of a connection. Contains all of the graphs
+ * @param props
+ * @param props.navigate  The navigate callback from the view root
+ * @param props.connIndex The index this connection has in the array of connections
+ */
 export default function Dashboard ({ navigate, connIndex }: { navigate: typeof renderRoute, connIndex: number }): React.ReactNode {
   const [config, setConfig] = useObject(window._config, ['pos'])
   const connection = config.connections[connIndex]!
@@ -138,10 +144,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       password: pw
     })
       .then(() => setPassword(pw))
-      .catch((err) => {
-        console.debug('err?', err)
-        setPasswordError(`Could not connect. Is the password incorrect? (${err})`)
-      })
+      .catch((err) => setPasswordError(`Could not connect. Is the password incorrect? (${err})`))
   }, [connection])
 
   useEffect(() => {

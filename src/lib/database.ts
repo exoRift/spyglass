@@ -3,17 +3,22 @@ import type { Knex } from 'knex'
 import type { TIME_UNITS } from './constants'
 
 /**
- * Returns an expression suitable for SELECT/GROUP BY/ORDER BY.
- *
- * For second/minute/hour/day/month/year:
- *   returns a truncated timestamp/date.
- *
- * For weekday:
- *   returns an integer 0-6 where:
- *     0 = Sunday
- *     1 = Monday
- *     ...
- *     6 = Saturday
+ * Returns an expression suitable for SELECT/GROUP BY/ORDER BY.\
+ * \
+ * For second/minute/hour/day/month/year:\
+ * returns a truncated timestamp/date.\
+ * \
+ * For weekday:\
+ * returns an integer 0-6 where:\
+ * 0 = Sunday\
+ * 1 = Monday\
+ * ...\
+ * 6 = Saturday\
+ * @param           knex   The Knex instance
+ * @param           unit   The unit to extract
+ * @param           column The column to operate on
+ * @returns                A Knex raw expression for the desired unit
+ * @throws  {Error}        If an unsupported dialect is tried
  */
 export function dateBucket (
   knex: Knex,

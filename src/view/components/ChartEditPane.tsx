@@ -40,6 +40,9 @@ type NestedAccess<T, K extends Autocomplete<FlattenObjectKeys<T>> = FlattenObjec
     ? UnionToIntersection<T>[K]
     : never
 
+/**
+ * A help button that displays a guide to the custom map function
+ */
 function MapFunctionHelpButton (): React.ReactNode {
   const { Dialog, handleShow } = Modal.useDialog()
 
@@ -97,7 +100,12 @@ function MapFunctionHelpButton (): React.ReactNode {
   )
 }
 
-function removeFancyCharacters (string: string): string {
+/**
+ * Replace the fancy characters inputs/textareas add to values with ones that are safe for JS eval
+ * @param string The input
+ * @returns      The santitized output
+ */
+function replaceFancyCharacters (string: string): string {
   return string
     .replace(/[\u2014]/g, '--')        // emdash
     .replace(/[\u2022]/g, '*')         // bullet
@@ -105,11 +113,18 @@ function removeFancyCharacters (string: string): string {
     .replace(/[\u201C\u201D]/g, '"')   // smart double quotes
 }
 
+/**
+ * A pane for configuring nearly everything in a chart
+ * @param props
+ * @param props.tables      The available tables that can be used
+ * @param props.editedChart A reference to the chart this pane is editing
+ * @param props.error       An error to display under the custom map function editor
+ */
 export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial<Record<string, Column[]>> | null, editedChart: ChartConfig, error?: Error }): React.ReactNode {
   const { result: isForgeInstalled = true, rerun: recheckForge } = usePromise(() => () => window.hasModule('data-forge'), [])
 
   const editChart = useCallback(<T extends FlattenObjectKeys<ChartConfig>> (field: T, value: NestedAccess<ChartConfig, T>): void => {
-    if (typeof value === 'string') value = removeFancyCharacters(value) as any
+    if (typeof value === 'string') value = replaceFancyCharacters(value) as any
 
     if (field === 'table') {
       if ('x' in editedChart.method) editedChart.method.x = null
@@ -400,7 +415,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                   if (!e.currentTarget.reportValidity()) return
 
                   editedChart.expressions ??= {}
-                  editedChart.expressions[nameInput.value] = removeFancyCharacters(expressionInput.value)
+                  editedChart.expressions[nameInput.value] = replaceFancyCharacters(expressionInput.value)
                   e.currentTarget.reset()
                 }}
               >

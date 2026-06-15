@@ -1,3 +1,5 @@
+/* eslint-disable jsdoc/require-jsdoc */
+
 import util from 'util'
 
 export function info (...args: any[]): null {

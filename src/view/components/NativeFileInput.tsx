@@ -3,6 +3,13 @@ import { twMerge } from 'tailwind-merge'
 
 import { Button } from 'react-daisyui'
 
+/**
+ * A file input that uses the Bun runtime methods for resolution instead of the webview
+ * @param props
+ * @param props.className
+ * @param props.accept
+ * @param props.defaultValue
+ */
 export function NativeFileInput ({ className, accept, defaultValue, ...props }: React.ComponentProps<'input'> & { defaultValue?: string }): React.ReactNode {
   const [value, setValue] = useState(defaultValue ?? '')
 

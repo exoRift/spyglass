@@ -6,6 +6,7 @@ import * as logger from './logger'
 
 /**
  * Change the current working directory to the global module cache
+ * @returns An object with a dispose symbol attached to return back to the original working directory on scope exit
  */
 export async function changecwd () { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   if (process.env.NODE_ENV === 'production') {
@@ -54,10 +55,25 @@ const originalResolve = (Module as any)._resolveFilename.bind(Module)
   return originalResolve(request, parent, isMain, options)
 }
 
+/**
+ * Get the fully resolved file path of a module from its specifier
+ * @param specifier The module specifier
+ * @returns         The resolved path
+ */
 async function getRealPath (specifier: string): Promise<string> {
   return (await Bun.$`BUN_BE_BUN=1 ${process.execPath} -p "require.resolve('${specifier}')"`.quiet(true)).text().trim()
 }
 
+/**
+ * When packages are installed, the module graph is outdated.\
+ * Attempting to import or require these modules does not work and the application needs to be restarted.\
+ * To circumvent this, we spin up ghost instances to get the fully resolved filenames\
+ * and then intercept the module resolver and introduce overrides.\
+ * This only applied to `require` and not `import` which is what the optional dependencies that concern us use\
+ * and why we use `require` dynamically in {@link ../index.ts} instead of `import`.\
+ * This function modifies the require resolver and is recursive in its resolution.
+ * @param specifier The specifier to resolve
+ */
 export async function manuallyResolveModule (specifier: string): Promise<void> {
   let attempts = 0
 

@@ -12,7 +12,7 @@ import { NativeFileInput } from '../components/NativeFileInput'
 import type { Config, Connection } from '../../lib/config'
 
 import logo from '../../assets/logo.png'
-import { MdAdd, MdBuild, MdInfo, MdEdit, MdDelete, MdFileCopy, MdWarning } from 'react-icons/md'
+import { MdAdd, MdBuild, MdInfo, MdEdit, MdDelete, MdFileCopy } from 'react-icons/md'
 import pkg from '../../../package.json' with { type: 'json' }
 
 const DB_CLIENT_DISPLAYNAME_MAP: Record<Connection['details']['client'], string> = {
@@ -26,6 +26,12 @@ const DB_CLIENT_DISPLAYNAME_MAP: Record<Connection['details']['client'], string>
   mssql: 'Microsoft SQL'
 }
 
+/**
+ * Get the name that should be applied to a copy of a connection
+ * @param config The Spyglass config
+ * @param name   The name of the original connection to copy
+ * @returns      The name for the copy
+ */
 function getCopyName (config: Config, name: string): string {
   let copyName = `Copy of ${name}`
 
@@ -39,6 +45,11 @@ function getCopyName (config: Config, name: string): string {
   return copyName
 }
 
+/**
+ * Convert a database environment to a badge
+ * @param env The environment
+ * @returns   The badge
+ */
 function envToBadge (env: Config['connections'][number]['environment']): React.ReactElement {
   switch (env) {
     case 'local': return <Badge variant='outline' color='neutral' className='uppercase'>{env}</Badge>
@@ -49,6 +60,12 @@ function envToBadge (env: Config['connections'][number]['environment']): React.R
   }
 }
 
+/**
+ * A modal to display connection test results
+ * @param props
+ * @param props.testResult The test result to display
+ * @param props.onClose    A callback for when the modal is closed
+ */
 function ConnectionTestResultModal ({ testResult, onClose, ...props }: React.ComponentProps<typeof Modal.Legacy> & { testResult: null | number | string, onClose: () => void }): React.ReactNode {
   return (
     <Modal.Legacy {...props}>
@@ -80,6 +97,12 @@ type MergeUnion<T> = {
     : never;
 }
 
+/**
+ * A form for filling out connection details
+ * @param props
+ * @param props.className
+ * @param props.defaultValues
+ */
 function ConnectionForm ({ className, defaultValues, ...props }: React.ComponentProps<typeof Form> & { defaultValues?: Omit<Connection, 'details'> & { details: MergeUnion<Connection['details']> } }): React.ReactNode {
   const [client, setClient] = useState<Connection['details']['client']>(defaultValues?.details.client ?? 'postgres')
 
@@ -199,6 +222,11 @@ function ConnectionForm ({ className, defaultValues, ...props }: React.Component
   )
 }
 
+/**
+ * A button to create a new connection
+ * @param props
+ * @param props.config The Spyglass config
+ */
 function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNode {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showTestResultsModal, setShowTestResultsModal] = useState(false)
@@ -214,7 +242,6 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
       savepass,
       ...obj
     } = Object.fromEntries(data.entries()) as any
-    if (!savepass) delete obj.password
     obj.charts = []
 
     const nameInput = document.getElementById('name') as HTMLInputElement
@@ -252,6 +279,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
           database,
           filename
         }
+        if (!savepass) delete obj.details.password
         obj.chartIdIncrementor = 0
         config.connections.push(obj)
 
@@ -303,6 +331,13 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
   )
 }
 
+/**
+ * A button to edit an existing connection
+ * @param props
+ * @param props.config       The Spyglass config
+ * @param props.connIndex    The index of the connection that can be edited in the array of connections
+ * @param props.startEditing Should the edit modal be shown on this component's mount?
+ */
 function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Config, connIndex: number, startEditing?: boolean }): React.ReactNode {
   const connection = config.connections[connIndex]!
 
@@ -321,7 +356,6 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
       savepass,
       ...obj
     } = Object.fromEntries(data.entries()) as any
-    if (!savepass) delete obj.password
 
     const nameInput = document.getElementById('name') as HTMLInputElement
     if (config.connections.some((c) => c !== connection && c.name === obj.name)) {
@@ -358,6 +392,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
           database,
           filename
         }
+        if (!savepass) delete obj.details.password
         Object.assign(connection, obj)
 
         void window.saveConfig(config)
@@ -447,34 +482,13 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
   )
 }
 
-function ConfigLoadFailureGuard (): React.ReactNode {
-  const [open, setOpen] = useState(Boolean(window._invalidConfigSchemaError))
-
-  return (
-    <Modal.Legacy open={open}>
-      <Modal.Header className='font-bold'>Failed to Load Config</Modal.Header>
-
-      <Modal.Body>
-        <p>A config file was detected but failed to load.</p>
-        <br />
-        <p>You can close the application to prevent data loss or continue anyway</p>
-
-        <code className='block bg-base-300 w-full text-xs mt-2 p-2'>
-          {window._invalidConfigSchemaError}
-        </code>
-      </Modal.Body>
-
-      <Modal.Actions>
-        <Button onClick={() => window.closeApplication()}>Close Spyglass</Button>
-        <Button color='warning' onClick={() => setOpen(false)}>
-          <MdWarning className='text-xl' />
-          <span>Continue Anyway</span>
-        </Button>
-      </Modal.Actions>
-    </Modal.Legacy>
-  )
-}
-
+/**
+ * The connection management page. Lists all connects and allows for connecting and editing.\
+ * The entry hub into the application.
+ * @param props
+ * @param props.navigate The navigate callback from the view root
+ * @param props.editing  The connection index to immediately begin editing on navigate
+ */
 export default function Connections ({ navigate, editing }: { navigate: typeof renderRoute, editing?: number }): React.ReactNode {
   const [config] = useObject(window._config, ['pos'])
 
@@ -521,8 +535,6 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
         </Table>
 
         <ConnectionCreateButton config={config} />
-
-        <ConfigLoadFailureGuard />
       </div>
 
       <footer className='flex justify-between text-base-content/50 text-xs p-1'>

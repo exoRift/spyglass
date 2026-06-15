@@ -3,6 +3,9 @@ import { twMerge } from 'tailwind-merge'
 import { IoMdEye, IoMdEyeOff } from 'react-icons/io'
 import { useRef } from 'react'
 
+/**
+ * A password input whose contents can be revealed by holding down on a button
+ */
 export function PasswordInput ({ className, ...props }: React.ComponentProps<'input'>): React.ReactNode {
   const inputRef = useRef<HTMLInputElement>(null)
 

@@ -74,6 +74,12 @@ const PercentageFormatter = Intl.NumberFormat(undefined, {
   style: 'percent'
 })
 
+/**
+ * Given a value and its unit, format it
+ * @param value The value
+ * @param unit  The unit
+ * @returns     The formatted value
+ */
 function formatValue (value: string | number, unit: ValueUnit | undefined): string {
   if (typeof value === 'string') {
     const number = parseFloat(value)
@@ -91,6 +97,11 @@ function formatValue (value: string | number, unit: ValueUnit | undefined): stri
 
 const PADDING = 100
 const SCROLL_AMNT = 20
+
+/**
+ * When dragging a chart, if the Y bounds of the screen are approached, begin scrolling
+ * @param e The mouse move event
+ */
 function onMouseMove (e: MouseEvent): void {
   const scroller = document.getElementById('dash-scroller')
   if (!scroller) return
@@ -99,6 +110,16 @@ function onMouseMove (e: MouseEvent): void {
   else if (e.clientY >= ((scroller.clientTop + scroller.clientHeight) - PADDING)) scroller.scrollTop += SCROLL_AMNT
 }
 
+/**
+ * A customizable chart to display data
+ * @param props
+ * @param props.chart         A reference to the chart config
+ * @param props.tables        The available tables to use
+ * @param props.canQuery      Whether we're good to begin querying rows
+ * @param props.className
+ * @param props.onContextMenu On chart right-click
+ * @param props.onError       On row fetch error
+ */
 export function Chart ({ chart, tables, canQuery, className, onContextMenu, onError }: { chart: ChartConfig, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.EChartsType>(undefined)

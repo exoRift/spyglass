@@ -4,6 +4,7 @@ import path from 'path'
 import util from 'util'
 import { type } from 'arktype'
 import Knex, { type Client } from 'knex'
+import { SchemaInspector } from 'knex-schema-inspector'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 import open from 'open'
 import vm from 'vm'
@@ -23,6 +24,10 @@ import pkg from '../package.json'
 logger.info('Starting Spyglass...')
 
 if (process.env.NODE_ENV === 'production') {
+  /**
+   * Synchronous bare-bones version of `open` because you can't schedule async tasks on `exit` event
+   * @param url The URL to open
+   */
   function openSync (url: string): void {
     switch (process.platform) {
       case 'darwin': spawnSync('open', [url]); break
@@ -49,6 +54,10 @@ if (process.env.NODE_ENV === 'production') {
   console.debug = wrap(console.debug.bind(console)) // eslint-disable-line no-console
   console.info = wrap(console.info.bind(console))
 
+  /**
+   * Before the program exits, if a non-zero exit code, dump to the log and open it to the user
+   * @param code The exit code
+   */
   function onExit (code: number): void {
     if (code) {
       fs.appendFileSync(LOG_PATH, `SPYGLASS HAS CRASHED! :( (Code ${code})`)
@@ -86,6 +95,10 @@ const DRIVERS: Record<Connection['details']['client'], string> = {
 
 const webview = new Webview(process.env.NODE_ENV !== 'production')
 
+/**
+ * Load the Spyglass config JSON
+ * @returns The parsed config
+ */
 function loadConfig (): Promise<Config> {
   return Bun.file(CONFIG_LOCATION, { type: 'json' })
     .json()
@@ -109,6 +122,11 @@ function loadConfig (): Promise<Config> {
 const config = await loadConfig()
 let activeConnection: Knex.Knex | undefined
 
+/**
+ * Check if a module exists and can be resolved
+ * @param name The name of the module
+ * @returns    Whether the module can be resolved
+ */
 function moduleExists (name: string): boolean {
   try {
     require.resolve(name)
@@ -118,6 +136,12 @@ function moduleExists (name: string): boolean {
   }
 }
 
+/**
+ * Construct a Knex connection given connection details
+ * @param details        The connection details
+ * @param details.client The database client to use
+ * @returns              The Knex instance
+ */
 async function constructConnection ({ client, ...details }: Knex.Knex.StaticConnectionConfig & { client: Connection['details']['client'] }): Promise<Knex.Knex> {
   using _ = await changecwd()
 
@@ -222,8 +246,6 @@ const binds = {
   async getTables (): Promise<Partial<Record<string, Column[]>>> {
     if (!activeConnection) throw new Error('Unable to get tables: No active connection')
 
-    // TODO: Check if I can import this at the top
-    const { SchemaInspector } = await import('knex-schema-inspector', { with: { type: 'module' } })
     const spector = SchemaInspector(activeConnection)
 
     const query = activeConnection.client.config.client === 'pg'
@@ -262,7 +284,7 @@ const binds = {
      * Resolve a column into a column name or an expression
      * @warn Assumes activeConnection !== null
      * @param column The column name/expression
-     * @returns The column name or expression
+     * @returns      The column name or expression
      */
     function resolveColumn (column: string): string | Knex.Knex.Raw {
       return column.startsWith('~expr:')
@@ -464,15 +486,27 @@ export type PromisifiedBinds = {
   [K in keyof Binds]: Promisify<Binds[K]>
 }
 
+/**
+ * Stringify an error for transport to the webview (can't serialize Error instances)
+ * @param err The error
+ * @returns   The string representation
+ */
 function stringifyError (err: unknown): string {
-  if (err instanceof Error) throw `${err.message} (${stringifyError(err.cause)})`
-  // @ts-expect-error
-  else if (typeof err === 'object' && 'message' in err) throw err.message
-  // @ts-expect-error
-  else throw err.toString()
+  if (err instanceof Error) {
+    if (err.cause) return `${err.message} (${stringifyError(err.cause)})`
+    else return err.message
+    // @ts-expect-error
+  } else if (typeof err === 'object' && 'message' in err) return err.message
+  else if (!err) return String(err)
+  else return err.toString() // eslint-disable-line @typescript-eslint/no-base-to-string
 }
 
-function promisify<T extends (...params: any[]) => any> (callback: T): Promisify<T> {
+/**
+ * Wrap a binding callback to catch errors to log them to the console and prepare them for transport
+ * @param callback The callback
+ * @returns        The wrapped callback
+ */
+function wrapBind<T extends (...params: any[]) => any> (callback: T): Promisify<T> {
   return async (...params) => {
     try {
       return await callback(...params)
@@ -489,7 +523,7 @@ function promisify<T extends (...params: any[]) => any> (callback: T): Promisify
 for (const name in binds) {
   webview.bind(
     name,
-    promisify(binds[name as keyof typeof binds])
+    wrapBind(binds[name as keyof typeof binds])
   )
 }
 

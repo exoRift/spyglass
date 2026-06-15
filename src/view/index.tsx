@@ -23,6 +23,11 @@ const VIEWS = {
 
 document.body.setAttribute('data-theme', window._config.theme)
 
+/**
+ * Render a route component to the root of the view
+ * @param route The route component
+ * @param props Props to pass to the component
+ */
 export function renderRoute<R extends keyof typeof VIEWS> (route: R, props: Omit<React.ComponentProps<(typeof VIEWS)[R]>, 'navigate'>): void {
   const View = VIEWS[route] as React.FunctionComponent<any>
 

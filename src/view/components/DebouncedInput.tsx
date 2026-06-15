@@ -2,6 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Input, Textarea } from 'react-daisyui'
 
+/**
+ * An input with a configurable debounce
+ * @param props
+ * @param props.Comp              The component to use
+ * @param props.delay             The debounce delay in ms
+ * @param props.onDebouncedChange
+ * @param props.value
+ * @param props.onChange
+ */
 export function DebouncedInput<C extends 'input' | 'textarea' | React.ComponentType<{ value: string, onChange: (e: string | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void }> = 'input'> ({
   Comp = 'input' as C,
   delay = 200,

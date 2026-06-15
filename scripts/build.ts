@@ -15,6 +15,12 @@ const BUILD_OUTPUT_PATH = path.resolve(import.meta.dirname, '../build')
 const ICON_PATH = path.resolve(import.meta.dirname, '../src/assets/logo.png')
 const ICON_SIZES = [16, 32, 48, 64, 128, 256]
 
+/**
+ * Resize an image file to a collection of sizes
+ * @param sourceFile The path to the source file
+ * @param sizes      The sizes to produce
+ * @returns          An array of image buffers
+ */
 async function getResizedIcons (sourceFile: string, sizes: number[]): Promise<Buffer[]> {
   const img = Bun.file(sourceFile).image()
 
@@ -30,10 +36,24 @@ async function getResizedIcons (sourceFile: string, sizes: number[]): Promise<Bu
   return buffers
 }
 
+/**
+ * Execute a command
+ * @param cmd The command to execute
+ */
 function exec (cmd: string): void {
   execSync(cmd, { stdio: 'inherit' })
 }
 
+/**
+ * Given a binary, create a .app package for MacOS
+ * @param params              App params
+ * @param params.appName      The name of the app for the manifest
+ * @param params.binaryPath   The path to the binary
+ * @param params.bundleId     The ID of the bundle
+ * @param params.version      The version of the distribution
+ * @param params.outDir       The directory to output the package
+ * @param params.signIdentity The identity to codesign with
+ */
 async function createMacApp ({
   appName,
   binaryPath,
@@ -108,7 +128,7 @@ async function createMacApp ({
   const retinaBuffers = await getResizedIcons(sourceIcon, retinaSizes)
 
   for (let i = 0; i < baseSizes.length; i++) {
-    const s = baseSizes[i]
+    const s = baseSizes[i]!
     const baseName = `icon_${s}x${s}.png`
     const retinaName = `icon_${s}x${s}@2x.png`
 
@@ -128,6 +148,12 @@ async function createMacApp ({
   exec(`codesign --verify --deep --strict --verbose=2 "${appPath}"`)
 }
 
+/**
+ * Create a .ico file from an image file for Windows
+ * @param params            Icon params
+ * @param params.sourceFile The path to the image file
+ * @param params.outFile    The path to the desired out file (.ico)
+ */
 async function createIco ({
   sourceFile,
   outFile

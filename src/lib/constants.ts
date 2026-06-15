@@ -25,6 +25,11 @@ export const DEFAULT_TRACE_COLORS = [
   '#ea7ccc'
 ] as const
 
+/**
+ * Get the identifier for a column within the entire database
+ * @param column The column
+ * @returns      The identifier
+ */
 export function getColumnIdentifier (column: Column): string {
   let identifier = `${column.table}.${column.name}`
   if (column.schema) identifier = `${column.schema}.${identifier}`
@@ -32,6 +37,12 @@ export function getColumnIdentifier (column: Column): string {
   return identifier
 }
 
+/**
+ * Given a column, get the most colloquial name possible that doesn't conflict with other columns
+ * @param column  The column to get the name for
+ * @param columns The collection of all columns
+ * @returns       The column name
+ */
 export function getColumnNonConflictName (column: Column, columns: Column[]): string {
   const conflict = columns.find((columnB) => columnB.name === column.name && column !== columnB)
   const displayName = conflict
@@ -47,6 +58,11 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   weekday: 'long',
   timeZone: 'UTC'
 })
+/**
+ * Given a number 0-6, get the name of a weekday
+ * @param weekday The weekday number
+ * @returns       The weekday name
+ */
 export function getWeekdayName (weekday: number): string {
   // 2024-01-07 was a Sunday
   const date = new Date(Date.UTC(2024, 0, 7 + weekday))

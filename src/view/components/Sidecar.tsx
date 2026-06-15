@@ -1,6 +1,42 @@
 import { useEffect, useState } from 'react'
 import { Modal, Button } from 'react-daisyui'
 
+import { MdWarning } from 'react-icons/md'
+
+/**
+ * A guard to display if the config failed to load
+ */
+function ConfigLoadFailureGuard (): React.ReactNode {
+  const [open, setOpen] = useState(Boolean(window._invalidConfigSchemaError))
+
+  return (
+    <Modal.Legacy open={open}>
+      <Modal.Header className='font-bold'>Failed to Load Config</Modal.Header>
+
+      <Modal.Body>
+        <p>A config file was detected but failed to load.</p>
+        <br />
+        <p>You can close the application to prevent data loss or continue anyway</p>
+
+        <code className='block bg-base-300 w-full text-xs mt-2 p-2'>
+          {window._invalidConfigSchemaError}
+        </code>
+      </Modal.Body>
+
+      <Modal.Actions>
+        <Button onClick={() => window.closeApplication()}>Close Spyglass</Button>
+        <Button color='warning' onClick={() => setOpen(false)}>
+          <MdWarning className='text-xl' />
+          <span>Continue Anyway</span>
+        </Button>
+      </Modal.Actions>
+    </Modal.Legacy>
+  )
+}
+
+/**
+ * A group of components to mount parallel to the root (usually modals)
+ */
 export function Sidecar (): React.ReactNode {
   const { Dialog: DriverDialog } = Modal.useDialog()
   const { Dialog: ForgeDialog } = Modal.useDialog()
@@ -77,10 +113,14 @@ export function Sidecar (): React.ReactNode {
 
         <Modal.Actions>
           <form method='dialog'>
-            <Button color='primary'>Cool!</Button>
+            {installationState?.[1]
+              ? <Button>OK</Button>
+              : <Button color='primary'>Cool!</Button>}
           </form>
         </Modal.Actions>
       </InstallationDialog>
+
+      <ConfigLoadFailureGuard />
     </>
   )
 }
