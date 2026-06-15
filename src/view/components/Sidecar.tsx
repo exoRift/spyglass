@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Modal, Button } from 'react-daisyui'
+
+import type { Config } from '../../lib/config'
 
 import { MdWarning } from 'react-icons/md'
 
@@ -35,9 +37,59 @@ function ConfigLoadFailureGuard (): React.ReactNode {
 }
 
 /**
- * A group of components to mount parallel to the root (usually modals)
+ * A guard to display if the config failed to save
  */
-export function Sidecar (): React.ReactNode {
+function ConfigSaveFailureGuard (): React.ReactNode {
+  const backup = useRef<Config>(null)
+  const [error, setError] = useState<string | null>(null)
+  const { Dialog, handleShow } = Modal.useDialog()
+
+  useEffect(() => {
+    window.saveConfigWithGuard = (cfg) => {
+      return window.saveConfig(cfg)
+        .catch((err) => {
+          backup.current = cfg
+          setError(err)
+          handleShow()
+          throw err
+        })
+    }
+  }, [handleShow])
+
+  return (
+    <Dialog open={Boolean(error)}>
+      <Modal.Header className='font-bold'>Failed to Save Config</Modal.Header>
+
+      <Modal.Body>
+        <p>Your config wasn't saved properly.</p>
+
+        <code className='block bg-base-300 w-full text-xs mt-2 p-2'>
+          {error}
+        </code>
+
+        <p>
+          To prevent data loss, click <button className='link active:text-primary' onClick={() => navigator.clipboard.writeText(JSON.stringify(backup.current, null, 2))}>here</button> to copy the
+          would-be config contents manually insert into your config file at <code className='bg-base-300 font-mono'>{window._configLocation}</code>.
+          After inserting, restart Spyglass.
+        </p>
+      </Modal.Body>
+
+      <Modal.Actions>
+        <form method='dialog'>
+        <Button color='warning' onClick={() => { backup.current = null }}>
+          <MdWarning className='text-xl' />
+          <span>Continue to Spyglass</span>
+        </Button>
+        </form>
+      </Modal.Actions>
+    </Dialog>
+  )
+}
+
+/**
+ * A collection of modals relating to drivers and installation
+ */
+function DriverModals (): React.ReactNode {
   const { Dialog: DriverDialog } = Modal.useDialog()
   const { Dialog: ForgeDialog } = Modal.useDialog()
   const { Dialog: InstallationDialog, handleShow: showInstallationDialog } = Modal.useDialog()
@@ -119,8 +171,20 @@ export function Sidecar (): React.ReactNode {
           </form>
         </Modal.Actions>
       </InstallationDialog>
+    </>
+  )
+}
+
+/**
+ * A group of components to mount parallel to the root (usually modals)
+ */
+export function Sidecar (): React.ReactNode {
+  return (
+    <>
+      <DriverModals />
 
       <ConfigLoadFailureGuard />
+      <ConfigSaveFailureGuard />
     </>
   )
 }

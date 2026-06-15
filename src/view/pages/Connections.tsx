@@ -283,13 +283,8 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
         obj.chartIdIncrementor = 0
         config.connections.push(obj)
 
-        void window.saveConfig(config)
-          .then((errs) => {
-            if (errs !== null) { // TODO: prompt error
-              console.error(errs)
-              return
-            }
-
+        void window.saveConfigWithGuard(config)
+          .then(() => {
             setShowCreateModal(false)
             form.reset()
           })
@@ -395,13 +390,8 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
         if (!savepass) delete obj.details.password
         Object.assign(connection, obj)
 
-        void window.saveConfig(config)
-          .then((errs) => { // TODO: prompt error
-            if (errs !== null) {
-              console.error(errs)
-              return
-            }
-
+        void window.saveConfigWithGuard(config)
+          .then(() => {
             setShowEditModal(false)
             form.reset()
           })
@@ -429,7 +419,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
                 <strong>{connection.name}</strong>
               </h1>
 
-              <Button size='sm' color='neutral' onClick={() => { config.connections.push({ ...connection, name: getCopyName(config, connection.name) }); setShowEditModal(false); void window.saveConfig(config) }}>
+              <Button size='sm' color='neutral' onClick={() => { config.connections.push({ ...connection, name: getCopyName(config, connection.name) }); setShowEditModal(false); void window.saveConfigWithGuard(config) }}>
                 <MdFileCopy className='text-base' />
                 Duplicate
               </Button>
@@ -472,7 +462,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
 
             <Modal.Actions>
               <Button type='button' color='neutral' onClick={() => setShowDeleteModal(false)}>No</Button>
-              <Button type='button' color='error' onClick={() => { config.connections.splice(connIndex, 1); void window.saveConfig(config) }}>Yes</Button>
+              <Button type='button' color='error' onClick={() => { config.connections.splice(connIndex, 1); void window.saveConfigWithGuard(config) }}>Yes</Button>
             </Modal.Actions>
           </Modal.Legacy>
         </>

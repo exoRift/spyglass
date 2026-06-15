@@ -284,7 +284,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
           if (r === null) {
             setRows([])
-            onError?.(new Error('Failed to fetch data'))
+            onError?.(new Error('No columns selected to query'))
           } else {
             setRows(r)
             onError?.(undefined)

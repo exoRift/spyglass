@@ -7,6 +7,7 @@ declare global {
     _missingDriver: string | undefined
     _config: Config
     _configLocation: string
+    saveConfigWithGuard: PromisifiedBinds['saveConfig']
   }
 }
 

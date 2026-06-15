@@ -202,7 +202,8 @@ const binds = {
   getConfigLocation (): string {
     return CONFIG_LOCATION
   },
-  async saveConfig (cfg: Config): Promise<null | type.errors> {
+  async saveConfig (cfg: Config): Promise<null> {
+    cfg.connections[0].environment = 'sigma'
     const parsed = Config(cfg)
     if (parsed instanceof type.errors) throw parsed
     Object.assign(config, parsed)
@@ -211,7 +212,7 @@ const binds = {
     return await Bun.write(CONFIG_LOCATION, JSON.stringify(parsed, null, 2))
       .then(() => null)
       .catch((err) => {
-        logger.error('FAILED TO SAVE CONFIG!', err)
+        logger.error('FAILED TO WRITE TO CONFIG FILE!', err)
         throw err
       })
   },

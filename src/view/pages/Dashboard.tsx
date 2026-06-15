@@ -120,7 +120,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
   }, [connIndex])
 
   const save = useCallback(() => {
-    void window.saveConfig(config)
+    void window.saveConfigWithGuard(config)
       .then(() => setIsUnsaved(false))
   }, [config])
 
