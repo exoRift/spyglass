@@ -178,6 +178,7 @@ const result = await Bun.build({
     'pg-query-stream',
     'sqlite3',
     'better-sqlite3',
+    'knex-bun-sqlite',
     'mysql',
     'mysql2',
     'tedious',

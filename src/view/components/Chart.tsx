@@ -256,21 +256,27 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       return
     }
 
-    void window.queryRows(chart as typeof chart & { table: string })
-      .then((r) => {
-        if (aborter.signal.aborted) return
+    function query (): void {
+      void window.queryRows(chart as typeof chart & { table: string })
+        .then((r) => {
+          if (aborter.signal.aborted) return
 
-        if (typeof r === 'string') {
+          if (r === null) {
+            setRows([])
+            onError?.(new Error('Failed to fetch data'))
+          } else {
+            setRows(r)
+            onError?.(undefined)
+          }
+        })
+        .catch((err) => {
           setRows([])
-          onError?.(new Error(r))
-        } else if (r === null) {
-          setRows([])
-          onError?.(new Error('Failed to fetch data'))
-        } else {
-          setRows(r)
-          onError?.(undefined)
-        }
-      })
+          onError?.(new Error(err))
+        })
+    }
+
+    query()
+    window.addEventListener('moduleinstalled', query, { signal: aborter.signal })
 
     return () => aborter.abort()
   }, [canQuery, chart, +chart])

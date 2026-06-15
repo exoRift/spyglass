@@ -28,6 +28,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
   const [tables, setTables] = useState<Partial<Record<string, Column[]>> | null>({})
   const errors = useMap<number, Error | undefined>()
   const [connected, setConnected] = useState(false)
+  const [retryConnection, setRetryConnection] = useState(0)
 
   const [password, setPassword] = useState<string>()
   const [passwordError, setPasswordError] = useState<string>()
@@ -136,9 +137,10 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       ...connection.details,
       password: pw
     })
-      .then((r) => {
-        if (typeof r !== 'number') setPasswordError(`Could not connect. Is the password incorrect? (${r})`)
-        else setPassword(pw)
+      .then(() => setPassword(pw))
+      .catch((err) => {
+        console.debug('err?', err)
+        setPasswordError(`Could not connect. Is the password incorrect? (${err})`)
       })
   }, [connection])
 
@@ -148,10 +150,12 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         .then(window.getTables)
         .then(setTables)
         .then(() => setConnected(true))
+        .catch(() => setTables(null))
 
-      return () => { void window.setActiveConnection(-1) }
+      return () => void window.setActiveConnection(-1)
     }
-  }, [connection.details.client, connection.details.client === 'sqlite' ? undefined : connection.details.password, connIndex, password])
+    // @ts-expect-error
+  }, [connection.details.client, connection.details.password, connIndex, password, retryConnection])
 
   useEffect(() => setIsUnsaved((prior) => prior !== null), [connection, +connection])
 
@@ -159,6 +163,17 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
     // Dashup widgets start at the wrong width for some reason. This will correct them
     setTimeout(() => window.dispatchEvent(new Event('resize')), 5)
   }, [])
+
+  useEffect(() => {
+    const aborter = new AbortController()
+
+    window.addEventListener('moduleinstalled', () => {
+      setPasswordError(undefined)
+      if (!connected) setRetryConnection((prior) => prior + 1)
+    }, { signal: aborter.signal })
+
+    return () => aborter.abort()
+  }, [connected])
 
   const editedChart = editing === null ? null : connection.charts[editing]!
 

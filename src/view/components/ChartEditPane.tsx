@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { usePromise } from 'react-exo-hooks'
 import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
@@ -106,7 +106,7 @@ function removeFancyCharacters (string: string): string {
 }
 
 export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial<Record<string, Column[]>> | null, editedChart: ChartConfig, error?: Error }): React.ReactNode {
-  const { result: isForgeInstalled = true } = usePromise(() => () => window.hasDataForge(), [])
+  const { result: isForgeInstalled = true, rerun: recheckForge } = usePromise(() => () => window.hasModule('data-forge'), [])
 
   const editChart = useCallback(<T extends FlattenObjectKeys<ChartConfig>> (field: T, value: NestedAccess<ChartConfig, T>): void => {
     if (typeof value === 'string') value = removeFancyCharacters(value) as any
@@ -191,6 +191,14 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
       display_name: c.data_type === 'expression' ? c.name : getColumnNonConflictName(c, columns)
     }))
   }, [tables, editedChart.table, editedChart.joins, editedChart.expressions, +editedChart])
+
+  useEffect(() => {
+    const aborter = new AbortController()
+
+    window.addEventListener('moduleinstalled', recheckForge, { signal: aborter.signal })
+
+    return () => aborter.abort()
+  }, [recheckForge])
 
   const xColumn = 'x' in editedChart.method ? usableColumns?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method).x) : undefined
   const yColumn = 'y' in editedChart.method ? usableColumns?.find((c) => c.identifier === (editedChart.method as typeof editedChart.method).y) : undefined

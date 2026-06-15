@@ -23,7 +23,7 @@ const DB_CLIENT_DISPLAYNAME_MAP: Record<Connection['details']['client'], string>
   mysql: 'MySQL',
   oracledb: 'Oracle',
   sqlite: 'SQLite',
-  mssql: 'MSSQL'
+  mssql: 'Microsoft SQL'
 }
 
 function getCopyName (config: Config, name: string): string {
@@ -228,6 +228,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
     switch (mode) {
       case 'test':
         void window.testConnection(obj)
+          .catch((err) => err)
           .then(setTestResult)
           .finally(() => setShowTestResultsModal(true))
 
@@ -256,7 +257,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
 
         void window.saveConfig(config)
           .then((errs) => {
-            if (errs !== null) {
+            if (errs !== null) { // TODO: prompt error
               console.error(errs)
               return
             }
@@ -333,6 +334,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
     switch (mode) {
       case 'test':
         void window.testConnection(obj)
+          .catch((err) => err)
           .then(setTestResult)
           .finally(() => setShowTestResultsModal(true))
 
@@ -359,7 +361,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
         Object.assign(connection, obj)
 
         void window.saveConfig(config)
-          .then((errs) => {
+          .then((errs) => { // TODO: prompt error
             if (errs !== null) {
               console.error(errs)
               return

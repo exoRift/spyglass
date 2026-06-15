@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/only-throw-error */
 import { Webview } from 'webview-bun'
 import path from 'path'
 import util from 'util'
@@ -13,10 +14,10 @@ import { openFileManagerDialog } from 'open-file-manager-dialog'
 
 import { type Chart, type Connection, Config } from './lib/config'
 import { getColumnIdentifier, getColumnNonConflictName } from './lib/constants'
-
 import * as logger from './lib/logger'
-import { changecwd } from './lib/depcache'
+import { changecwd, manuallyResolveModule } from './lib/depcache'
 import { dateBucket } from './lib/database'
+
 import pkg from '../package.json'
 
 logger.info('Starting Spyglass...')
@@ -108,26 +109,29 @@ function loadConfig (): Promise<Config> {
 const config = await loadConfig()
 let activeConnection: Knex.Knex | undefined
 
-function moduleExists (name: string): Promise<boolean> {
-  return Bun.resolve(name, import.meta.dirname)
-    .then(() => true)
-    .catch(() => false)
+function moduleExists (name: string): boolean {
+  try {
+    require.resolve(name)
+    return true
+  } catch {
+    return false
+  }
 }
 
-async function constructConnection ({ client, ...details }: Knex.Knex.StaticConnectionConfig & { client: Connection['details']['client'] }): Promise<Knex.Knex | undefined> {
+async function constructConnection ({ client, ...details }: Knex.Knex.StaticConnectionConfig & { client: Connection['details']['client'] }): Promise<Knex.Knex> {
   using _ = await changecwd()
 
   const driver = DRIVERS[client]
 
-  const installed = await moduleExists(driver)
+  const installed = moduleExists(driver)
   if (!installed) {
     logger.info(`Alerting user to missing ${client} driver (${driver})`)
     webview.eval(`window._missingDriver = '${driver}'; document.getElementById('driver-name').innerText = '${driver}'; document.getElementById('client-name').innerText = '${client}'; document.getElementById('driver-modal').showModal()`)
-    return undefined
+    throw new Error('Could not construct connection. (Is the driver installed?)')
   }
 
   return Knex({
-    client: driver === 'knex-bun-sqlite' ? (await import('knex-bun-sqlite')).default as unknown as typeof Client : driver,
+    client: driver === 'knex-bun-sqlite' ? require('knex-bun-sqlite') as unknown as typeof Client : driver,
     connection: {
       application_name: 'Spyglass',
       ...details
@@ -144,28 +148,25 @@ const binds = {
   logWarn: logger.warn,
   logError: logger.error,
   logDebug: logger.debug,
-  async hasDataForge () {
+  async hasModule (specifier: string) {
     using _ = await changecwd()
-    return await moduleExists('data-forge')
+    return moduleExists(specifier)
   },
-  async installDriver (driver: string, noRestart?: true | null) {
+  async installDriver (driver: string) {
     const version = (pkg.optionalDependencies as Record<string, string>)[driver]
     logger.info('Installing:', driver, version)
 
-    await Bun.$`BUN_BE_BUN=1 ${process.execPath} install -g ${driver}${version ? `@${version}` : ''}`
-      .then(() => {
+    return Bun.$`BUN_BE_BUN=1 ${process.execPath} install -g ${driver}${version ? `@${version}` : ''}`
+      .then(async () => {
+        using _ = await changecwd()
         logger.info(driver, 'installed')
 
-        if (!noRestart) {
-          webview.destroy()
-          process.execve!(
-            process.execPath,
-            [process.execPath, ...process.argv.slice(1)],
-            process.env
-          )
-        }
+        await manuallyResolveModule(driver)
+        return null
       })
-      .catch(() => logger.error(driver, 'failed to install'))
+      .catch((err) => {
+        throw new Error(`Failed to install driver: ${driver}`, { cause: err })
+      })
   },
   async openLink (url: string) {
     return await open(url)
@@ -179,7 +180,7 @@ const binds = {
   },
   async saveConfig (cfg: Config): Promise<null | type.errors> {
     const parsed = Config(cfg)
-    if (parsed instanceof type.errors) return parsed
+    if (parsed instanceof type.errors) throw parsed
     Object.assign(config, parsed)
 
     ;(parsed as any).$schema = `https://raw.githubusercontent.com/exoRift/spyglass/refs/tags/v${pkg.version}/schema/config.json`
@@ -187,20 +188,19 @@ const binds = {
       .then(() => null)
       .catch((err) => {
         logger.error('FAILED TO SAVE CONFIG!', err)
-        return null
+        throw err
       })
   },
-  async testConnection (details: Connection['details'] & { password: string }): Promise<number | null> {
+  async testConnection (details: Connection['details'] & { password: string }): Promise<number> {
     const connection = await constructConnection(details)
-    if (!connection) return null
 
     const ts = performance.now()
     return await connection.raw('SELECT 1+1')
       .then(() => performance.now() - ts)
-      .catch((err) => err.message || err.code || err.toString())
+      .catch((err) => { throw err.message || err.code || err.toString() })
       .finally(() => void connection.destroy())
   },
-  async setActiveConnection (index: number, password?: string | null): Promise<number | null> {
+  async setActiveConnection (index: number, password?: string | null): Promise<null> {
     if (activeConnection) {
       void activeConnection.destroy()
       activeConnection = undefined
@@ -208,23 +208,21 @@ const binds = {
     if (index === -1) return null
 
     const connection = config.connections[index]
-    if (!connection) throw Error('Somehow trying to set nonexistent active connection')
+    if (!connection) throw new Error('Somehow trying to set nonexistent active connection')
     const details = structuredClone(connection.details)
     if (details.client !== 'sqlite') {
       if (password !== undefined && password !== null) details.password = password
-      if (details.password === undefined) throw Error('Missing password for connection')
+      if (details.password === undefined) throw new Error('Missing password for connection')
     }
 
     activeConnection = await constructConnection(details)
 
     return null
   },
-  async getTables (): Promise<Partial<Record<string, Column[]>> | null> {
-    if (!activeConnection) {
-      logger.error('No active connection')
-      return null
-    }
+  async getTables (): Promise<Partial<Record<string, Column[]>>> {
+    if (!activeConnection) throw new Error('Unable to get tables: No active connection')
 
+    // TODO: Check if I can import this at the top
     const { SchemaInspector } = await import('knex-schema-inspector', { with: { type: 'module' } })
     const spector = SchemaInspector(activeConnection)
 
@@ -254,15 +252,11 @@ const binds = {
       })))
       .then(Object.fromEntries)
       .catch((err) => {
-        logger.warn('Failed to connect to database', err)
-        return null
+        throw new Error('Failed to connect to database', { cause: err })
       })
   },
-  async queryRows (chart: Chart & { table: string }): Promise<any[] | null | string> {
-    if (!activeConnection) {
-      logger.error('Attempted to query without an active connection')
-      return null
-    }
+  async queryRows (chart: Chart & { table: string }): Promise<any[] | null> {
+    if (!activeConnection) throw new Error('Unable to get rows: No active connection')
 
     /**
      * Resolve a column into a column name or an expression
@@ -362,7 +356,6 @@ const binds = {
       case 'custom': {
         if (chart.method.columns.length) {
           const tables = await binds.getTables()
-          if (!tables) throw new Error('Unexpected: Querying custom map fn and tables is null')
 
           const columns = [...tables[chart.table]!]
           if (chart.joins) {
@@ -415,41 +408,38 @@ const binds = {
 
           const script = new vm.Script(`
             (() => {
-              ${chart.method.fn.replaceAll(/import|require/g, '')}
+              ${chart.method.fn}
             })()
           `)
 
+          let forge
           try {
-            logger.debug('Running custom map function')
-
-            const value = script.runInNewContext(
-              {
-                rows,
-                forge: (await import('data-forge').catch(() => ({ default: undefined }))).default,
-                log: logger.debug.bind('MAPFN')
-              },
-              {
-                timeout: 5000
-              }
-            )
-
-            if (!Array.isArray(value)) return 'Returned value is not an array'
-            if (!('x' in value[0]) || !('y' in value[0])) return 'Santi Check: return[0] does not have an x and y property'
-
-            return value
-          } catch (err: any) {
-            if ('message' in err) return err.message
-            else {
-              logger.error(err)
-              return 'Unknown Error'
-            }
+            forge = require('data-forge')
+          } catch {
+            forge = null
           }
+
+          logger.debug('Running custom map function')
+
+          const value = script.runInNewContext(
+            {
+              rows,
+              forge,
+              log: logger.debug.bind('MAPFN')
+            },
+            {
+              timeout: 5000
+            }
+          )
+
+          if (!Array.isArray(value)) throw new Error('Returned value is not an array')
+          if (!('x' in value[0]) || !('y' in value[0])) throw new Error('Sanity Check: return[0] does not have an x and y property')
+
+          return value
         } else return rows
       })
-      .finally()
       .catch((err) => {
-        logger.error('Failed to execute query', err)
-        return null
+        throw new Error('Failed to execute query', { cause: err })
       })
   },
   promptFile (accept?: string[] | null) {
@@ -459,8 +449,7 @@ const binds = {
         else return files[0] ?? null
       })
       .catch((err) => {
-        logger.error('Failed to pick a file in selection dialog', err)
-        return null
+        throw new Error('Failed to pick a file in selection dialog', { cause: err })
       })
   },
   closeApplication () {
@@ -470,8 +459,38 @@ const binds = {
 } as const satisfies Record<string, Promise<{} | null> | {} | null>
 export type Binds = typeof binds
 
+export type Promisify<T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>
+export type PromisifiedBinds = {
+  [K in keyof Binds]: Promisify<Binds[K]>
+}
+
+function stringifyError (err: unknown): string {
+  if (err instanceof Error) throw `${err.message} (${stringifyError(err.cause)})`
+  // @ts-expect-error
+  else if (typeof err === 'object' && 'message' in err) throw err.message
+  // @ts-expect-error
+  else throw err.toString()
+}
+
+function promisify<T extends (...params: any[]) => any> (callback: T): Promisify<T> {
+  return async (...params) => {
+    try {
+      return await callback(...params)
+    } catch (err) {
+      // TEMP: https://github.com/oven-sh/bun/issues/18357
+      if (err instanceof Error) logger.error(err, err.cause)
+      else logger.error(err)
+
+      throw stringifyError(err)
+    }
+  }
+}
+
 for (const name in binds) {
-  webview.bind(name, binds[name as keyof typeof binds])
+  webview.bind(
+    name,
+    promisify(binds[name as keyof typeof binds])
+  )
 }
 
 webview.title = 'Spyglass'
@@ -483,19 +502,19 @@ const originalWarn = console.warn
 const originalDebug = console.debug
 console.info = (...args) => {
   originalInfo(...args)
-  void logInfo(...args).catch(() => logWarn('Failed to log to INFO'))
+  void logInfo(...args).catch(() => logWarn('Failed to log to INFO', args))
 }
 console.error = (...args) => {
   originalError(...args)
-  void logError(...args).catch(() => logWarn('Failed to log to ERROR'))
+  void logError(...args).catch(() => logWarn('Failed to log to ERROR', args))
 }
 console.warn = (...args) => {
   originalWarn(...args)
-  void logWarn(...args).catch(() => logWarn('Failed to log to WARN'))
+  void logWarn(...args).catch(() => originalWarn('Failed to log to WARN', args))
 }
 console.debug = (...args) => {
   originalDebug(...args)
-  void logDebug(...args).catch(() => logWarn('Failed to log to DEBUG'))
+  void logDebug(...args).catch(() => logWarn('Failed to log to DEBUG', args))
 }
 window.addEventListener('error', (e) => { void logError('Webview Runtime Error:', e.message) }, { passive: true })
 `)
