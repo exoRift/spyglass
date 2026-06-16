@@ -317,6 +317,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     const figuredType = isTimeXAxis
       ? 'time'
       : 'category'
+
     chartRef.current?.setOption({
       animation: true,
       title: {
@@ -351,10 +352,12 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       legend: {
         show: true,
-        bottom: 8
+        type: 'scroll',
+        bottom: 8,
+        padding: [0, 30]
       },
       grid: {
-        bottom: figuredType === 'time' ? 105 : 75
+        bottom: (figuredType === 'time' ? 105 : 75) + (chart.xLabelAngle && chart.xLabelAngle % 180 ? 16 : 0)
       },
       xAxis: {
         type: figuredType,
@@ -367,6 +370,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         },
         axisLabel: {
           hideOverlap: true,
+          rotate: chart.xLabelAngle,
           formatter: isTimeXAxis ? undefined : (v: string | number) => formatValue(v, chart.xUnit)
         }
       },
@@ -406,7 +410,8 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chart.style,
     chart.traceColors,
     chart.xUnit,
-    chart.yUnit
+    chart.yUnit,
+    chart.xLabelAngle
   ])
 
   useEffect(() => {
@@ -495,7 +500,8 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
             },
             fill: 'var(--color-base-content)',
             fontSize: 10
-          }
+          },
+          cursor: 'default'
         }
         : undefined
     }, { replaceMerge: oldLength > series.length ? 'series' : undefined })

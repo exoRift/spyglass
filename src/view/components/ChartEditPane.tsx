@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
 import type { Column } from 'knex-schema-inspector/dist/types/column'
 
-import type { Chart as ChartConfig } from '../../lib/config'
+import type { Chart as ChartConfig, TimeUnit } from '../../lib/config'
 import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getColumnNonConflictName, TIME_UNITS } from '../../lib/constants'
 
 import { Button, Divider, Dropdown, Input, Join, Modal, Select, Toggle, Tooltip } from 'react-daisyui'
@@ -125,6 +125,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
 
   const editChart = useCallback(<T extends FlattenObjectKeys<ChartConfig>> (field: T, value: NestedAccess<ChartConfig, T>): void => {
     if (typeof value === 'string') value = replaceFancyCharacters(value) as any
+    if (typeof value === 'number' && isNaN(value)) value = undefined as any
 
     if (field === 'table') {
       if ('x' in editedChart.method) editedChart.method.x = null
@@ -228,6 +229,12 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         <Input size='sm' value={editedChart.subtitle} onChange={(e) => editChart('subtitle', e.currentTarget.value)} className='w-full' id='subtitle' name='subtitle' placeholder='Subtitle...' />
       </div>
 
+      {error && editedChart.method.type !== 'custom' && (
+        <label className='label'>
+          <span className='label-text text-xs text-error text-wrap'>{error.message}</span>
+        </label>
+      )}
+
       <div className='fieldset w-full'>
         <label htmlFor='table' className='label'>
           <span className='label-text'>Table</span>
@@ -268,8 +275,8 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     <Select value={j.baseColumn ?? ''} onChange={(e) => { j.baseColumn = e.currentTarget.value }} className='w-full' id={`join_${j.table}_base`} name={`join_${j.table}_base`}>
                       <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                      {tables?.[editedChart.table ?? '']?.map((c) =>
-                        <Select.Option key={c.name} value={c.name}>{c.name}</Select.Option>
+                      {usableColumns?.filter((c) => c.table !== j.table).map((c) =>
+                        <Select.Option key={c.identifier} value={c.identifier}>{c.display_name}</Select.Option>
                       )}
                     </Select>
                   </div>
@@ -281,8 +288,10 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     <Select value={j.foreignColumn ?? ''} onChange={(e) => { j.foreignColumn = e.currentTarget.value }} className='w-full' id={`join_${j.table}_foreign`} name={`join_${j.table}_foreign`}>
                       <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                      {tables?.[j.table]?.map((c) => (
-                        <Select.Option key={c.name} value={c.name}>{c.name}</Select.Option>
+                      {console.debug(usableColumns)}
+
+                      {usableColumns?.filter((c) => c.table === j.table).map((c) => (
+                        <Select.Option key={c.identifier} value={c.identifier}>{c.display_name}</Select.Option>
                       ))}
                     </Select>
                   </div>
@@ -452,129 +461,132 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
           </details>
         </div>
 
-        {editedChart.method.type !== 'custom' && (
-          <section className='space-y-1'>
-            <div className='flex gap-4 *:grow'>
-              <div className='fieldset w-full'>
-                <label htmlFor='xTitle' className='label'>
-                  <span className='label-text'>X Axis Title</span>
-                </label>
-                <Input value={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
-              </div>
-
-              <div className='fieldset w-full'>
-                <label htmlFor='table' className='label'>
-                  <span className='label-text'>{editedChart.method.type.includes('aggregate') ? 'X Axis Grouping Column' : 'X Axis Column'}</span>
-                </label>
-                <Select disabled={!editedChart.table} value={editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
-                  <Select.Option value='' disabled>Choose a column</Select.Option>
-
-                  {(usableColumns?.map((c) => (
-                    <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                  )))}
-                </Select>
-              </div>
-
-              <div className='fieldset'>
-                <label className='label invisible'>
-                  <span className='label-text'>S</span>
-                </label>
-
-                <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision !== 'number'}>
-                  <MdSettings className='text-2xl transition not-disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
-                </button>
-              </div>
-            </div>
-            <details id='xSettings' open={!editedChart.table || (!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision !== 'number') ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
-              <summary className='hidden' />
-
-              <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
-                {!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision === 'number' && (
-                  <div className='fieldset w-full'>
-                    <label htmlFor='xUnit' className='label'>
-                      <span className='label-text'>X Axis Unit Type</span>
-                    </label>
-                    <Select value={editedChart.xUnit ?? ''} onChange={(e) => editChart('xUnit', e.currentTarget.value as typeof editedChart.xUnit || undefined)} className='w-full' id='xUnit' name='xUnit'>
-                      <Select.Option value=''>Auto</Select.Option>
-                      <Select.Option value='currency'>Currency</Select.Option>
-                      <Select.Option value='percentage'>Percentage</Select.Option>
-                    </Select>
-                  </div>
-                )}
-
-                {xColumn?.data_type.match(/date|time/) && (
-                  <div className='fieldset w-full'>
-                    <label htmlFor='xTimeBin' className='label'>
-                      <span className='label-text'>X Time Bin</span>
-                    </label>
-                    <Select value={editedChart.method.xTimeBin ?? ''} onChange={(e) => editChart('method.xTimeBin', (e.currentTarget.value as typeof editedChart.method.xTimeBin | '') || undefined)} id='xTimeBin' name='xTimeBin'>
-                      <Select.Option value=''>None</Select.Option>
-
-                      {TIME_UNITS.map((unit) => (
-                        <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
-                      ))}
-                    </Select>
-                  </div>
-                )}
-              </div>
-            </details>
-          </section>
-        )}
-
-        {(editedChart.method.type !== 'aggregate_count' && editedChart.method.type !== 'custom') && (
-          <section className='space-y-1'>
-            <div className='flex gap-4 *:grow'>
-              <div className='fieldset w-full'>
-                <label htmlFor='yTitle' className='label'>
-                  <span className='label-text'>Y Axis Title</span>
-                </label>
-                <Input value={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
-              </div>
-
-              <div className='fieldset w-full'>
-                <label htmlFor='yColumn' className='label'>
-                  <span className='label-text'>Y Axis Column</span>
-                </label>
-                <Select disabled={!editedChart.table} value={editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
-                  <Select.Option value='' disabled>Choose a column</Select.Option>
-
-                  {(editedChart.method.type === 'aggregate_count_unique' ? usableColumns : usableColumns?.filter((c) => c.numeric_precision !== null))?.map((c) => (
-                    <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
-                  ))}
-                </Select>
-              </div>
-
-              <div className='fieldset'>
-                <label className='label invisible'>
-                  <span className='label-text'>S</span>
-                </label>
-
-                <button onClick={() => { const details = document.getElementById('ySettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number'}>
-                  <MdSettings className='text-2xl transition not-disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
-                </button>
-              </div>
+        <section className='space-y-1'>
+          <div className='flex gap-4 *:grow'>
+            <div className='fieldset w-full'>
+              <label htmlFor='xTitle' className='label'>
+                <span className='label-text'>X Axis Title</span>
+              </label>
+              <Input value={editedChart.xTitle} onChange={(e) => editChart('xTitle', e.currentTarget.value)} className='w-full' id='xTitle' name='xTitle' />
             </div>
 
-            <details id='ySettings' open={!editedChart.table || Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number' ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
-              <summary className='hidden' />
+            <div className='fieldset w-full'>
+              <label htmlFor='table' className='label'>
+                <span className='label-text'>{editedChart.method.type.includes('aggregate') ? 'X Axis Grouping Column' : 'X Axis Column'}</span>
+              </label>
+              <Select disabled={!editedChart.table || editedChart.method.type === 'custom'} value={editedChart.method.type === 'custom' ? '' : editedChart.method.x ?? ''} onChange={(e) => editChart('method.x', e.currentTarget.value)} className='w-full' id='xColumn' name='xColumn'>
+                <Select.Option value='' disabled>Choose a column</Select.Option>
 
-              <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
-                {!yColumn?.data_type.match(/date|time/) && typeof yColumn?.numeric_precision === 'number' && (
-                  <div className='fieldset w-full'>
-                    <label htmlFor='xUnit' className='label'>
-                      <span className='label-text'>Y Axis Unit Type</span>
-                    </label>
-                    <Select value={editedChart.yUnit ?? ''} onChange={(e) => editChart('yUnit', e.currentTarget.value as typeof editedChart.yUnit || undefined)} className='w-full' id='yUnit' name='yUnit'>
-                      <Select.Option value=''>Auto</Select.Option>
-                      <Select.Option value='currency'>Currency</Select.Option>
-                      <Select.Option value='percentage' disabled={editedChart.style === 'pie'}>Percentage</Select.Option>
-                    </Select>
-                  </div>
-                )}
+                {(usableColumns?.map((c) => (
+                  <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
+                )))}
+              </Select>
+            </div>
+
+            <div className='fieldset'>
+              <label className='label invisible'>
+                <span className='label-text'>S</span>
+              </label>
+
+              <button onClick={() => { const details = document.getElementById('xSettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10'>
+                <MdSettings className='text-2xl transition not-disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
+              </button>
+            </div>
+          </div>
+          <details id='xSettings' open={!editedChart.table || (!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision !== 'number') ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+            <summary className='hidden' />
+
+            <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
+              {!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision === 'number' && (
+                <div className='fieldset w-full'>
+                  <label htmlFor='xUnit' className='label'>
+                    <span className='label-text'>X Axis Unit Type</span>
+                  </label>
+                  <Select value={editedChart.xUnit ?? ''} onChange={(e) => editChart('xUnit', e.currentTarget.value as typeof editedChart.xUnit || undefined)} className='w-full' id='xUnit' name='xUnit'>
+                    <Select.Option value=''>Auto</Select.Option>
+                    <Select.Option value='currency'>Currency</Select.Option>
+                    <Select.Option value='percentage'>Percentage</Select.Option>
+                  </Select>
+                </div>
+              )}
+
+              {xColumn?.data_type.match(/date|time/) && (
+                <div className='fieldset w-full'>
+                  <label htmlFor='xTimeBin' className='label'>
+                    <span className='label-text'>X Time Bin</span>
+                  </label>
+                  <Select disabled={editedChart.method.type === 'custom'} value={editedChart.method.type === 'custom' ? '' : editedChart.method.xTimeBin ?? ''} onChange={(e) => editChart('method.xTimeBin', (e.currentTarget.value as TimeUnit | '') || undefined)} id='xTimeBin' name='xTimeBin'>
+                    <Select.Option value=''>None</Select.Option>
+
+                    {TIME_UNITS.map((unit) => (
+                      <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+
+              <div className='fieldset w-full'>
+                <label htmlFor='xLabelAngle' className='label'>
+                  <span className='label-text'>X Label Angle</span>
+                </label>
+                <Input type='number' placeholder={'0\u00b0'} value={editedChart.xLabelAngle?.toString() ?? ''} onChange={(e) => editChart('xLabelAngle', e.currentTarget.valueAsNumber)} />
               </div>
-            </details>
-          </section>
-        )}
+            </div>
+          </details>
+        </section>
+
+        <section className='space-y-1'>
+          <div className='flex gap-4 *:grow'>
+            <div className='fieldset w-full'>
+              <label htmlFor='yTitle' className='label'>
+                <span className='label-text'>Y Axis Title</span>
+              </label>
+              <Input value={editedChart.yTitle} onChange={(e) => editChart('yTitle', e.currentTarget.value)} className='w-full' id='yTitle' name='yTitle' />
+            </div>
+
+            <div className='fieldset w-full'>
+              <label htmlFor='yColumn' className='label'>
+                <span className='label-text'>Y Axis Column</span>
+              </label>
+              <Select disabled={!editedChart.table || editedChart.method.type === 'aggregate_count' || editedChart.method.type === 'custom'} value={editedChart.method.type === 'aggregate_count' || editedChart.method.type === 'custom' ? '' : editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
+                <Select.Option value='' disabled>Choose a column</Select.Option>
+
+                {(editedChart.method.type === 'aggregate_count_unique' ? usableColumns : usableColumns?.filter((c) => c.numeric_precision !== null))?.map((c) => (
+                  <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
+                ))}
+              </Select>
+            </div>
+
+            <div className='fieldset'>
+              <label className='label invisible'>
+                <span className='label-text'>S</span>
+              </label>
+
+              <button onClick={() => { const details = document.getElementById('ySettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number'}>
+                <MdSettings className='text-2xl transition not-disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
+              </button>
+            </div>
+          </div>
+
+          <details id='ySettings' open={!editedChart.table || Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number' ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+            <summary className='hidden' />
+
+            <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
+              {!yColumn?.data_type.match(/date|time/) && typeof yColumn?.numeric_precision === 'number' && (
+                <div className='fieldset w-full'>
+                  <label htmlFor='xUnit' className='label'>
+                    <span className='label-text'>Y Axis Unit Type</span>
+                  </label>
+                  <Select value={editedChart.yUnit ?? ''} onChange={(e) => editChart('yUnit', e.currentTarget.value as typeof editedChart.yUnit || undefined)} className='w-full' id='yUnit' name='yUnit'>
+                    <Select.Option value=''>Auto</Select.Option>
+                    <Select.Option value='currency'>Currency</Select.Option>
+                    <Select.Option value='percentage' disabled={editedChart.style === 'pie'}>Percentage</Select.Option>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </details>
+        </section>
 
         {editedChart.method.type === 'aggregate_avg' && editedChart.style !== 'pie' && (
           <div className='fieldset w-full'>
@@ -661,7 +673,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
               </Tooltip>
             ))}
 
-            {editedChart.method.type === 'aggregate_avg' && editedChart.method.bars && (
+            {((editedChart.method.type === 'aggregate_avg' && editedChart.method.bars) || editedChart.method.type === 'custom') && (
               <Tooltip message='Bars'>
                 <label style={{ backgroundColor: editedChart.barColor ?? DEFAULT_BAR_COLOR }} className='flex justify-center size-4 rounded-sm cursor-pointer hover:ring focus-within:ring-2' htmlFor='barColor'>
                   <input type='color' value={editedChart.barColor ?? DEFAULT_BAR_COLOR} onChange={(e) => { editedChart.barColor = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id='barColor' name='barColor' />

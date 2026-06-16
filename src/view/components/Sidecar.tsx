@@ -76,10 +76,10 @@ function ConfigSaveFailureGuard (): React.ReactNode {
 
       <Modal.Actions>
         <form method='dialog'>
-        <Button color='warning' onClick={() => { backup.current = null }}>
-          <MdWarning className='text-xl' />
-          <span>Continue to Spyglass</span>
-        </Button>
+          <Button color='warning' onClick={() => { backup.current = null }}>
+            <MdWarning className='text-xl' />
+            <span>Continue to Spyglass</span>
+          </Button>
         </form>
       </Modal.Actions>
     </Dialog>

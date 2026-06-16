@@ -10,6 +10,7 @@ const Join = type({
 })
 
 const TimeUnit = type.enumerated(...TIME_UNITS)
+export type TimeUnit = typeof TimeUnit.infer
 const ValueUnit = type('"currency" | "percentage"')
 export type ValueUnit = typeof ValueUnit.infer
 
@@ -61,6 +62,7 @@ const Chart = type({
   'where?': 'string',
   'xUnit?': ValueUnit,
   'yUnit?': ValueUnit,
+  'xLabelAngle?': 'number',
   'limit?': 'number',
   'sortCol?': 'string',
   'sortDesc?': 'true'

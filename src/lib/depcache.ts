@@ -100,11 +100,9 @@ export async function manuallyResolveModule (specifier: string): Promise<void> {
 
       // Purge anything that was added to the cache during this failed attempt.
       // These entries may hold stale circular-dep references to modules that
-      // were subsequently removed from cache by Node on failure.
+      // were subsequently removed from cache by Bun on failure.
       for (const key of Object.keys(require.cache)) {
-        if (!cacheKeysBefore.has(key)) {
-          delete require.cache[key]
-        }
+        if (!cacheKeysBefore.has(key)) delete require.cache[key]
       }
 
       const subRealPath = await getRealPath(subspecifier)

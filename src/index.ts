@@ -203,7 +203,6 @@ const binds = {
     return CONFIG_LOCATION
   },
   async saveConfig (cfg: Config): Promise<null> {
-    cfg.connections[0].environment = 'sigma'
     const parsed = Config(cfg)
     if (parsed instanceof type.errors) throw parsed
     Object.assign(config, parsed)
@@ -262,16 +261,10 @@ const binds = {
       : spector.tables()
 
     return query
-      .then((tables) => Promise.all(tables.map((t) => {
-        let tableName
-        const dotIndex = t.indexOf('.')
-        if (dotIndex !== -1) {
-          const schema = t.slice(0, dotIndex)
-          tableName = t.slice(dotIndex + 1)
-          spector.withSchema?.(schema)
-        } else tableName = t
+      .then((tables) => Promise.all(tables.map((table) => {
+        if (table.schema) spector.withSchema?.(table.schema)
 
-        return spector.columnInfo(tableName).then((c) => [t, c])
+        return spector.columnInfo(table.name).then((c) => [table, c])
       })))
       .then(Object.fromEntries)
       .catch((err) => {
@@ -299,7 +292,7 @@ const binds = {
     for (const join of validJoins) {
       if (!join.baseColumn || !join.foreignColumn) continue
 
-      query[join.type === 'inner' ? 'join' : join.type === 'left' ? 'leftJoin' : 'rightJoin'](join.table, `${chart.table}.${join.baseColumn}`, '=', `${join.table}.${join.foreignColumn}`)
+      query[join.type === 'inner' ? 'join' : join.type === 'left' ? 'leftJoin' : 'rightJoin'](join.table, join.baseColumn, '=', join.foreignColumn)
     }
     if (chart.where) query.whereRaw(chart.where)
 
