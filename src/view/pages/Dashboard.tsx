@@ -1,5 +1,3 @@
-import type { Column } from 'knex-schema-inspector/dist/types/column'
-
 import { twMerge } from 'tailwind-merge'
 import { getUnproxiedObject, useMap, useObject } from 'react-exo-hooks'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -9,6 +7,7 @@ import { type Layout, type WidgetProps, Dashboard as Dash } from 'dashup'
 import { Alert, Button, Drawer, Form, Input, Modal, Tooltip } from 'react-daisyui'
 import { Chart } from '../components/Chart'
 import { ChartEditPane } from '../components/ChartEditPane'
+import type { Table } from '../../lib/constants'
 
 import { MdArrowLeft, MdCable, MdDelete, MdFileCopy, MdSave, MdWarning } from 'react-icons/md'
 import { VscDiscard } from 'react-icons/vsc'
@@ -31,7 +30,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
 
   const [isUnsaved, setIsUnsaved] = useState<boolean | null>(null)
   const [editing, setEditing] = useState<number | null>(null)
-  const [tables, setTables] = useState<Partial<Record<string, Column[]>> | null>({})
+  const [tables, setTables] = useState<Record<string, Table> | null>({})
   const errors = useMap<number, Error | undefined>()
   const [connected, setConnected] = useState(false)
   const [retryConnection, setRetryConnection] = useState(0)

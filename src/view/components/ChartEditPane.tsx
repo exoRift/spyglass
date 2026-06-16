@@ -2,10 +2,9 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { usePromise } from 'react-exo-hooks'
 import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
-import type { Column } from 'knex-schema-inspector/dist/types/column'
 
 import type { Chart as ChartConfig, TimeUnit } from '../../lib/config'
-import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getColumnNonConflictName, TIME_UNITS } from '../../lib/constants'
+import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnNonConflictName, TIME_UNITS, type Table } from '../../lib/constants'
 
 import { Button, Divider, Dropdown, Input, Join, Modal, Select, Toggle, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
@@ -120,7 +119,7 @@ function replaceFancyCharacters (string: string): string {
  * @param props.editedChart A reference to the chart this pane is editing
  * @param props.error       An error to display under the custom map function editor
  */
-export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial<Record<string, Column[]>> | null, editedChart: ChartConfig, error?: Error }): React.ReactNode {
+export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<string, Table> | null, editedChart: ChartConfig, error?: Error }): React.ReactNode {
   const { result: isForgeInstalled = true, rerun: recheckForge } = usePromise(() => () => window.hasModule('data-forge'), [])
 
   const editChart = useCallback(<T extends FlattenObjectKeys<ChartConfig>> (field: T, value: NestedAccess<ChartConfig, T>): void => {
@@ -169,18 +168,19 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
   const usableColumns = useMemo(() => {
     if (!tables || !editedChart.table) return
 
-    let columns = tables[editedChart.table]
+    let columns = tables[editedChart.table]?.columns
     if (!columns) return
 
     for (const join of editedChart.joins ?? []) {
       const table = tables[join.table]
 
-      if (table) columns = columns.concat(table)
+      if (table) columns = columns.concat(table.columns)
     }
 
     if (editedChart.expressions) {
       columns = columns.concat(Object.entries(editedChart.expressions).map(([name, expression]) => ({
         name,
+        identifier: `~expr:${name}`,
         data_type: 'expression',
         default_value: null,
         foreign_key_column: null,
@@ -197,13 +197,12 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         comment: null,
         foreign_key_schema: null,
         generation_expression: expression,
-        schema: tables[editedChart.table!]![0]?.schema
+        schema: tables[editedChart.table!]!.schema
       })))
     }
 
     return columns.map((c) => ({
       ...c,
-      identifier: c.data_type === 'expression' ? `~expr:${c.name}` : getColumnIdentifier(c),
       display_name: c.data_type === 'expression' ? c.name : getColumnNonConflictName(c, columns)
     }))
   }, [tables, editedChart.table, editedChart.joins, editedChart.expressions, +editedChart])
@@ -242,8 +241,8 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
         <Select value={editedChart.table ?? ''} onChange={(e) => editChart('table', e.currentTarget.value)} className='w-full' id='table' name='table'>
           <Select.Option value='' disabled>Choose a Table</Select.Option>
 
-          {(tables && Object.keys(tables).map((t) => (
-            <Select.Option value={t} key={t}>{t}</Select.Option>
+          {(tables && Object.values(tables).map((t) => (
+            <Select.Option value={t.identifier} key={t.identifier}>{t.display_name}</Select.Option>
           )))}
         </Select>
 
@@ -258,7 +257,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
             {editedChart.joins?.map((j, i) => (
               <div key={j.table} className='transition transition-discrete starting:opacity-0 opacity-100'>
                 <div className='flex gap-4 justify-between'>
-                  <label className='font-semibold'>{j.table}</label>
+                  <label className='font-semibold'>{tables?.[j.table]?.display_name ?? j.table}</label>
 
                   <Select size='xs' value={j.type} className='w-fit' onChange={(e) => { j.type = e.currentTarget.value as typeof j.type }}>
                     <Select.Option value='inner'>Inner</Select.Option>
@@ -288,8 +287,6 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
                     <Select value={j.foreignColumn ?? ''} onChange={(e) => { j.foreignColumn = e.currentTarget.value }} className='w-full' id={`join_${j.table}_foreign`} name={`join_${j.table}_foreign`}>
                       <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                      {console.debug(usableColumns)}
-
                       {usableColumns?.filter((c) => c.table === j.table).map((c) => (
                         <Select.Option key={c.identifier} value={c.identifier}>{c.display_name}</Select.Option>
                       ))}
@@ -318,10 +315,10 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Partial
               </Dropdown.Toggle>
 
               <Dropdown.Menu>
-                {(tables && Object.keys(tables).map((t) => (
-                  t === editedChart.table || editedChart.joins?.some((j) => j.table === t)
+                {(tables && Object.values(tables).map((t) => (
+                  t.identifier === editedChart.table || editedChart.joins?.some((j) => j.table === t.identifier)
                     ? null
-                    : <Dropdown.Item key={t} onClick={() => { editedChart.joins ??= []; editedChart.joins.push({ table: t, type: 'inner', baseColumn: null, foreignColumn: null }); (document.activeElement as HTMLElement | null)?.blur() }}>{t}</Dropdown.Item>
+                    : <Dropdown.Item key={t.identifier} onClick={() => { editedChart.joins ??= []; editedChart.joins.push({ table: t.identifier, type: 'inner', baseColumn: null, foreignColumn: null }); (document.activeElement as HTMLElement | null)?.blur() }}>{t.display_name}</Dropdown.Item>
                 )))}
               </Dropdown.Menu>
             </Dropdown>

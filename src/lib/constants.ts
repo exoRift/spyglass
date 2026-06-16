@@ -1,4 +1,5 @@
-import type { Column } from 'knex-schema-inspector/dist/types/column'
+import type { Column as KSIColumn } from 'knex-schema-inspector/dist/types/column'
+import type { Table as KSITable } from 'knex-schema-inspector/dist/types/table'
 
 export const TIME_UNITS = [
   'second',
@@ -30,7 +31,7 @@ export const DEFAULT_TRACE_COLORS = [
  * @param column The column
  * @returns      The identifier
  */
-export function getColumnIdentifier (column: Column): string {
+export function getColumnIdentifier (column: KSIColumn): string {
   let identifier = `${column.table}.${column.name}`
   if (column.schema) identifier = `${column.schema}.${identifier}`
 
@@ -43,13 +44,30 @@ export function getColumnIdentifier (column: Column): string {
  * @param columns The collection of all columns
  * @returns       The column name
  */
-export function getColumnNonConflictName (column: Column, columns: Column[]): string {
+export function getColumnNonConflictName (column: KSIColumn, columns: KSIColumn[]): string {
   const conflict = columns.find((columnB) => columnB.name === column.name && column !== columnB)
   const displayName = conflict
     ? conflict.table === column.table && column.schema
       ? `${column.schema}.${column.table}.${column.name}`
       : `${column.table}.${column.name}`
     : column.name
+
+  return displayName
+}
+
+/**
+ * Given a table, get the most colloquial name possible that doesn't conflict with other tables
+ * @param table  The table to get the name for
+ * @param tables The collection of all tables
+ * @returns      The table name
+ */
+export function getTableNonConflictName (table: KSITable, tables: KSITable[]): string {
+  const conflict = tables.find((t) => t.name === table.name && t !== table)
+  const displayName = conflict
+    ? table.schema
+      ? `${table.schema}.${table.name}`
+      : table.name
+    : table.name
 
   return displayName
 }
@@ -68,4 +86,14 @@ export function getWeekdayName (weekday: number): string {
   const date = new Date(Date.UTC(2024, 0, 7 + weekday))
 
   return DATE_FORMATTER.format(date)
+}
+
+export interface Column extends KSIColumn {
+  identifier: string
+}
+
+export interface Table extends KSITable {
+  identifier: string
+  display_name: string
+  columns: Column[]
 }

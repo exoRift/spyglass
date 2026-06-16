@@ -5,7 +5,6 @@ import util from 'util'
 import { type } from 'arktype'
 import Knex, { type Client } from 'knex'
 import { SchemaInspector } from 'knex-schema-inspector'
-import type { Column } from 'knex-schema-inspector/dist/types/column'
 import open from 'open'
 import vm from 'vm'
 import os from 'os'
@@ -14,7 +13,7 @@ import fs from 'fs'
 import { openFileManagerDialog } from 'open-file-manager-dialog'
 
 import { type Chart, type Connection, Config } from './lib/config'
-import { getColumnIdentifier, getColumnNonConflictName } from './lib/constants'
+import { getColumnIdentifier, getColumnNonConflictName, getTableNonConflictName, type Table } from './lib/constants'
 import * as logger from './lib/logger'
 import { changecwd, manuallyResolveModule } from './lib/depcache'
 import { dateBucket } from './lib/database'
@@ -243,28 +242,30 @@ const binds = {
 
     return null
   },
-  async getTables (): Promise<Partial<Record<string, Column[]>>> {
+  async getTables (): Promise<Record<string, Table>> {
     if (!activeConnection) throw new Error('Unable to get tables: No active connection')
 
     const spector = SchemaInspector(activeConnection)
 
-    const query = activeConnection.client.config.client === 'pg'
-      ? activeConnection.raw<{ rows: Array<{ full_table_name: string }> }>(
-        `
-          SELECT table_schema || '.' || table_name AS full_table_name
-          FROM information_schema.tables
-          WHERE table_type = 'BASE TABLE'
-            AND table_schema NOT IN ('pg_catalog', 'information_schema')
-        `
-      )
-        .then(({ rows }) => rows.map((r) => r.full_table_name))
-      : spector.tables()
+    const query = spector.tableInfo()
 
     return query
       .then((tables) => Promise.all(tables.map((table) => {
         if (table.schema) spector.withSchema?.(table.schema)
 
-        return spector.columnInfo(table.name).then((c) => [table, c])
+        let tableIdentifier = table.name
+        if (table.schema) tableIdentifier = `${table.schema}.${tableIdentifier}`
+
+        return spector.columnInfo(table.name).then((columns) => [tableIdentifier, {
+          ...table,
+          identifier: tableIdentifier,
+          display_name: getTableNonConflictName(table, tables),
+          columns: columns.map((c) => ({
+            ...c,
+            table: tableIdentifier,
+            identifier: getColumnIdentifier(c)
+          }))
+        }])
       })))
       .then(Object.fromEntries)
       .catch((err) => {
@@ -373,23 +374,29 @@ const binds = {
         if (chart.method.columns.length) {
           const tables = await binds.getTables()
 
-          const columns = [...tables[chart.table]!]
+          const columns = [...tables[chart.table]!.columns]
           if (chart.joins) {
-            for (const join of chart.joins) columns.push(...tables[join.table]!)
+            for (const join of chart.joins) columns.push(...tables[join.table]!.columns)
           }
 
           didSelect = true
           query
-            .select(chart.method.columns.map((c) =>
-              c.startsWith('~expr:')
-                ? activeConnection!
-                  .column(activeConnection!.raw(chart.expressions?.[c.slice('~expr:'.length)] ?? '0')).as(c.slice('~expr:'.length))
-                : activeConnection!
-                  .column(c)
-                  .as(
-                    getColumnNonConflictName(columns.find((col) => getColumnIdentifier(col) === c)!, columns)
-                      .replaceAll('.', '_')
-                  ))
+            .select(chart.method.columns.map((col) => {
+              if (col.startsWith('~expr:')) {
+                return activeConnection!
+                  .column(activeConnection!.raw(chart.expressions?.[col.slice('~expr:'.length)] ?? '0')).as(col.slice('~expr:'.length))
+              }
+
+              const column = columns.find((c) => c.identifier === col)
+              if (!column) {
+                logger.warn(`Column "${col}" present in custom method columns to query, but the column does not exist`)
+                return activeConnection!.raw('\'MISSING COLUMN\'')
+              }
+
+              return activeConnection!
+                .column(col)
+                .as(getColumnNonConflictName(column, columns).replaceAll('.', '_'))
+            })
             )
         }
         break

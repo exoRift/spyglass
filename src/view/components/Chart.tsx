@@ -1,11 +1,10 @@
 import * as echarts from 'echarts'
-import type { Column } from 'knex-schema-inspector/dist/types/column'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 import type { Chart as ChartConfig, ValueUnit } from '../../lib/config'
-import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnIdentifier, getWeekdayName } from '../../lib/constants'
+import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getWeekdayName, type Table } from '../../lib/constants'
 
 import { MdDragHandle } from 'react-icons/md'
 
@@ -120,7 +119,7 @@ function onMouseMove (e: MouseEvent): void {
  * @param props.onContextMenu On chart right-click
  * @param props.onError       On row fetch error
  */
-export function Chart ({ chart, tables, canQuery, className, onContextMenu, onError }: { chart: ChartConfig, tables: Partial<Record<string, Column[]>> | null, canQuery: boolean, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
+export function Chart ({ chart, tables, canQuery, className, onContextMenu, onError }: { chart: ChartConfig, tables: Partial<Record<string, Table>> | null, canQuery: boolean, onError?: (e: Error | undefined) => void } & Pick<React.ComponentProps<'div'>, 'className' | 'onContextMenu'>): React.ReactNode {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.EChartsType>(undefined)
   const isAnimating = useRef(true)
@@ -310,7 +309,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     else if (tables && chart.table && 'x' in chart.method && chart.method.x) {
       const x = chart.method.x
 
-      const column = tables[chart.table]?.find((c) => getColumnIdentifier(c) === x)
+      const column = tables[chart.table]?.columns.find((c) => c.identifier === x)
       isTimeXAxis = column?.data_type.includes('date') || column?.data_type.includes('time')
     } else isTimeXAxis = !isNaN(+new Date(rows[0]?.x))
 
