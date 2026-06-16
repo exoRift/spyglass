@@ -8,11 +8,15 @@ import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getWeekdayName, type Table } f
 
 import { MdDragHandle } from 'react-icons/md'
 
+const RESET_ZOOM_DOUBLE_CLICK_LEEWAY_MS = 500
+const EXCLUSIVE_LEGEND_DOUBLE_CLICK_LEEWAY_MS = 300
+
 const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) {
   const xValue = api.value(0)
   const lowPoint = api.coord([xValue, api.value(2)])
+  const midPoint = api.coord([xValue, api.value(1)])
   const highPoint = api.coord([xValue, api.value(3)])
-  // const width = (api.size!([0, 1]) as [number, number])[0] * 0.4
+
   const width = 5
   const color = api.visual('color')
 
@@ -23,35 +27,67 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
 
   return {
     type: 'group',
+    id: xValue.toString(),
+    transition: 'all',
     children: [
       {
         type: 'line',
+        id: 'vertical',
+        enterFrom: {
+          shape: {
+            x1: midPoint[0],
+            y1: midPoint[1],
+            x2: midPoint[0],
+            y2: midPoint[1]
+          }
+        },
         shape: {
           x1: highPoint[0],
           y1: highPoint[1],
           x2: lowPoint[0],
           y2: lowPoint[1]
         },
+        transition: ['shape'],
         style: lineStyle
       },
       {
         type: 'line',
+        id: 'top',
+        enterFrom: {
+          shape: {
+            x1: midPoint[0]! - width,
+            y1: midPoint[1],
+            x2: midPoint[0]! + width,
+            y2: midPoint[1]
+          }
+        },
         shape: {
           x1: highPoint[0]! - width,
           y1: highPoint[1],
           x2: highPoint[0]! + width,
           y2: highPoint[1]
         },
+        transition: ['shape'],
         style: lineStyle
       },
       {
         type: 'line',
+        id: 'bottom',
+        enterFrom: {
+          shape: {
+            x1: midPoint[0]! - width,
+            y1: midPoint[1],
+            x2: midPoint[0]! + width,
+            y2: midPoint[1]
+          }
+        },
         shape: {
           x1: lowPoint[0]! - width,
           y1: lowPoint[1],
           x2: lowPoint[0]! + width,
           y2: lowPoint[1]
         },
+        transition: ['shape'],
         style: lineStyle
       }
     ]
@@ -223,19 +259,12 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     const observer = new ResizeObserver(resize)
     if (widget) observer.observe(widget)
 
-    function onFinished (): void {
-      isAnimating.current = false
-    }
-
-    let lastClick = Date.now()
-    /**
-     * Reset zoom to base level
-     * @param e The click event
-     */
-    function resetZoom (e: any): void {
+    chartRef.current.on('finished', () => { isAnimating.current = false })
+    let lastZoomClick = Date.now()
+    chartRef.current.getZr().on('mousedown', (e: any) => {
       const now = Date.now()
 
-      if (now - lastClick < 500 && e.target?.cursor === 'crosshair') {
+      if (now - lastZoomClick < RESET_ZOOM_DOUBLE_CLICK_LEEWAY_MS && e.target?.cursor === 'crosshair') {
         chartRef.current?.dispatchAction({
           type: 'dataZoom',
           start: 0,
@@ -243,11 +272,44 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         })
       }
 
-      lastClick = now
-    }
+      lastZoomClick = now
+    })
 
-    chartRef.current.on('finished', onFinished)
-    chartRef.current.getZr().on('mousedown', resetZoom)
+    let lastLegendClick: [name: string, timestamp: number] | undefined
+    chartRef.current.on('legendselectchanged', (params: any) => {
+      if (!(params.name in params.selected)) {
+        const selected = structuredClone(params.selected)
+        const old = (chartRef.current!.getOption().legend as any)[0]
+        chartRef.current!.setOption({
+          legend: {
+            ...old,
+            selected
+          }
+        }, { replaceMerge: ['legend'] })
+
+        return
+      }
+
+      const now = Date.now()
+      const isDoubleClick = lastLegendClick && params.name === lastLegendClick[0] && now - lastLegendClick[1] < EXCLUSIVE_LEGEND_DOUBLE_CLICK_LEEWAY_MS
+
+      lastLegendClick = [params.name, now]
+      if (!isDoubleClick) return
+
+      for (const series of Object.keys(params.selected)) {
+        if (series !== params.name) {
+          chartRef.current!.dispatchAction({
+            type: 'legendUnSelect',
+            name: series
+          })
+        }
+      }
+
+      chartRef.current!.dispatchAction({
+        type: 'legendSelect',
+        name: params.name
+      })
+    })
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'cross' } } })
