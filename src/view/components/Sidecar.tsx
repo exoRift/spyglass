@@ -179,9 +179,30 @@ function DriverModals (): React.ReactNode {
  * A group of components to mount parallel to the root (usually modals)
  */
 export function Sidecar (): React.ReactNode {
+  const { Dialog: CustomPasteDialog } = Modal.useDialog()
+
   return (
     <>
       <DriverModals />
+
+      <CustomPasteDialog id='custompaste-modal'>
+        <Modal.Header className='flex gap-2 items-center text-lg font-bold'>
+          <MdWarning className='text-warning' />
+          Security Warning
+        </Modal.Header>
+        <Modal.Body>
+          <p>
+            Be careful pasting code from untrusted sources.
+            The custom map function is not <i>fully</i> sandboxed and is susceptible to attacks
+          </p>
+        </Modal.Body>
+
+        <Modal.Actions>
+          <form method='dialog'>
+            <Button onClick={() => { window._config.dismissedWarnings.push('custompaste') }}>Got it</Button>
+          </form>
+        </Modal.Actions>
+      </CustomPasteDialog>
 
       <ConfigLoadFailureGuard />
       <ConfigSaveFailureGuard />

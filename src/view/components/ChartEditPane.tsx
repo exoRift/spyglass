@@ -112,6 +112,17 @@ function replaceFancyCharacters (string: string): string {
     .replace(/[\u201C\u201D]/g, '"')   // smart double quotes
 }
 
+const PasteListener = EditorView.domEventHandlers({
+  paste () {
+    if (!window._config.dismissedWarnings.includes('custompaste')) {
+      (document.getElementById('custompaste-modal') as HTMLDialogElement).showModal()
+      return true
+    }
+
+    return false
+  }
+})
+
 /**
  * A pane for configuring nearly everything in a chart
  * @param props
@@ -616,7 +627,17 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
                 <span className='label-text'>Map Function</span>
                 <MapFunctionHelpButton />
               </label>
-              <DebouncedInput theme={matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'} extensions={[javascript(), EditorView.lineWrapping]} delay={500} className='font-mono text-wrap' Comp={CodeMirror} id='mapFn' placeholder='JS Code...' value={editedChart.method.fn} onDebouncedChange={(v) => editChart('method.fn', v)} />
+              <DebouncedInput
+                theme={matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'}
+                extensions={[javascript(), EditorView.lineWrapping, PasteListener]}
+                delay={500}
+                className='font-mono text-wrap'
+                Comp={CodeMirror}
+                id='mapFn'
+                placeholder='JS Code...'
+                value={editedChart.method.fn}
+                onDebouncedChange={(v) => editChart('method.fn', v)}
+              />
               {!isForgeInstalled && (
                 <Button size='xs' color='neutral' onClick={() => (document.getElementById('forge-modal') as HTMLDialogElement).showModal()}>Install DataForge (optional)</Button>
               )}
