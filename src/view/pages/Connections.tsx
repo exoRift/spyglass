@@ -486,7 +486,7 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
   return (
     <>
       <header className='flex gap-4 items-center justify-between bg-base-300 transition-colors py-2 px-4'>
-        <div className='flex gap-4 items-center'>
+        <div className='flex gap-4 items-center relative after:absolute after:right-7 after:bottom-1 after:content-["✦"] after:opacity-0 hover:after:animate-sparkle after:origin-center'>
           <img src={logo} alt='Spyglass' className='w-16 h-12 object-cover dark:invert dark:hue-rotate-180' />
 
           <h1 className='text-secondary text-xl font-bold -translate-x-8 translate-y-4 italic'>Spyglass</h1>
