@@ -75,7 +75,7 @@ function ConfigSaveFailureGuard (): React.ReactNode {
       </Modal.Body>
 
       <Modal.Actions>
-        <form method='dialog'>
+        <form method='dialog' className='contents'>
           <Button color='warning' onClick={() => { backup.current = null }}>
             <MdWarning className='text-xl' />
             <span>Continue to Spyglass</span>
@@ -117,7 +117,7 @@ function DriverModals (): React.ReactNode {
         </Modal.Body>
 
         <Modal.Actions>
-          <form method='dialog'>
+          <form method='dialog' className='contents'>
             <Button>No</Button>
             <Button color='success' onClick={() => window.installDriver(window._missingDriver!).catch(() => null).then((res) => setInstallationState([window._missingDriver!, res]))}>Install</Button>
           </form>
@@ -137,7 +137,7 @@ function DriverModals (): React.ReactNode {
         </Modal.Body>
 
         <Modal.Actions>
-          <form method='dialog'>
+          <form method='dialog' className='contents'>
             <Button>No</Button>
             <Button color='success' onClick={() => window.installDriver('data-forge').catch(() => null).then((res) => setInstallationState(['data-forge', res]))}>Install</Button>
           </form>
@@ -164,7 +164,7 @@ function DriverModals (): React.ReactNode {
         </Modal.Body>
 
         <Modal.Actions>
-          <form method='dialog'>
+          <form method='dialog' className='contents'>
             {installationState?.[1]
               ? <Button>OK</Button>
               : <Button color='primary'>Cool!</Button>}
@@ -198,7 +198,7 @@ export function Sidecar (): React.ReactNode {
         </Modal.Body>
 
         <Modal.Actions>
-          <form method='dialog'>
+          <form method='dialog' className='contents'>
             <Button onClick={() => { window._config.dismissedWarnings.push('custompaste') }}>Got it</Button>
           </form>
         </Modal.Actions>

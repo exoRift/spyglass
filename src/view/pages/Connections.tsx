@@ -8,6 +8,7 @@ import type { renderRoute } from '../index'
 import { Badge, Button, Form, Input, Modal, Select, Table, Toggle, Tooltip } from 'react-daisyui'
 import { PasswordInput } from '../components/PasswordInput'
 import { NativeFileInput } from '../components/NativeFileInput'
+import { Settings } from '../components/Settings'
 
 import type { Config, Connection } from '../../lib/config'
 
@@ -491,10 +492,12 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
           <h1 className='text-secondary text-xl font-bold -translate-x-8 translate-y-4 italic'>Spyglass</h1>
         </div>
 
-        <div>
-          <a href={pkg.homepage} target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void window.openLink(e.currentTarget.href) }}>
-            <img src='https://github.com/favicon.ico' alt='GitHub' className='size-6 dark:invert' />
+        <div className='flex items-center gap-4'>
+          <a title='Repository' href={pkg.homepage} target='_blank' rel='noreferrer' className='group' onClick={(e) => { e.preventDefault(); void window.openLink(e.currentTarget.href) }}>
+            <img src='https://github.com/favicon.ico' alt='GitHub' className='transition duration-500 ease-[cubic-bezier(1,1.85,0.34,-0.32)] size-6 dark:invert group-hover:scale-125' />
           </a>
+
+          <Settings config={config} />
         </div>
       </header>
 

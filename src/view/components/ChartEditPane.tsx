@@ -87,7 +87,7 @@ function MapFunctionHelpButton (): React.ReactNode {
               </p>
             </Modal.Body>
             <Modal.Actions>
-              <form method='dialog'>
+              <form method='dialog' className='contents'>
                 <Button>Close</Button>
               </form>
             </Modal.Actions>

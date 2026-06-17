@@ -4,6 +4,7 @@ import Connections from './pages/Connections'
 import Dashboard from './pages/Dashboard'
 
 import { Sidecar } from './components/Sidecar'
+import { setTheme } from './components/Settings'
 
 import './styles/index.css'
 
@@ -21,7 +22,7 @@ const VIEWS = {
   Dashboard
 }
 
-document.body.setAttribute('data-theme', window._config.theme)
+setTheme(window._config.theme)
 
 /**
  * Render a route component to the root of the view

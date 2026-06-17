@@ -5,8 +5,6 @@
 
 @plugin 'daisyui/theme' {
   name: 'pearlwinter';
-  default: true;
-  prefersdark: false;
   color-scheme: 'light';
   --color-base-100: oklch(100% 0 0);
   --color-base-200: oklch(95.466% 0.011 259.822);
@@ -35,8 +33,6 @@
 
 @plugin "daisyui/theme" {
   name: 'pearlnight';
-  default: false;
-  prefersdark: true;
   color-scheme: 'dark';
   --color-base-100: oklch(24.768% 0.039 265.754);
   --color-base-200: oklch(19.314% 0.037 265.754);
@@ -62,8 +58,10 @@
 }
 
 @plugin "daisyui" {
-  themes: pearlwinter --default, pearlnight --prefersdark;
+  themes: pearlwinter, pearlnight;
 }
+
+@custom-variant dark (&:where([data-theme='pearlnight'], [data-theme='pearlnight'] *));
 
 html {
   @apply transition-colors duration-300;
@@ -75,7 +73,6 @@ html, html * {
 
 body {
   @apply transition-colors h-screen overflow-x-clip;
-  color-scheme: light dark;
 }
 
 @layer utilities {

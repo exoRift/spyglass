@@ -331,6 +331,9 @@
                 "where": {
                   "type": "string"
                 },
+                "xLabelAngle": {
+                  "type": "number"
+                },
                 "xUnit": {
                   "enum": [
                     "currency",
@@ -448,6 +451,13 @@
           "name"
         ],
         "additionalProperties": false
+      },
+      "default": []
+    },
+    "dismissedWarnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
       },
       "default": []
     },
