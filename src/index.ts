@@ -342,11 +342,19 @@ const binds = {
 
           switch (chart.method.bars) {
             case 'stddev':
-              query
-                .select({
-                  lowBar: activeConnection.raw('? - STDDEV(??)', [activeConnection.avg(resolveColumn(chart.method.y)), resolveColumn(chart.method.y)]),
-                  highBar: activeConnection.raw('? + STDDEV(??)', [activeConnection.avg(resolveColumn(chart.method.y)), resolveColumn(chart.method.y)])
-                })
+              if (activeConnection.client.dialect === 'sqlite3') {
+                query
+                  .select({
+                    lowBar: activeConnection.raw(':value - SQRT(AVG(:column: * :column:) - AVG(:column:) * AVG(:column:))', { value: activeConnection.avg(resolveColumn(chart.method.y)), column: resolveColumn(chart.method.y) }),
+                    highBar: activeConnection.raw(':value + SQRT(AVG(:column: * :column:) - AVG(:column:) * AVG(:column:))', { value: activeConnection.avg(resolveColumn(chart.method.y)), column: resolveColumn(chart.method.y) })
+                  })
+              } else {
+                query
+                  .select({
+                    lowBar: activeConnection.raw('? - STDDEV(??)', [activeConnection.avg(resolveColumn(chart.method.y)), resolveColumn(chart.method.y)]),
+                    highBar: activeConnection.raw('? + STDDEV(??)', [activeConnection.avg(resolveColumn(chart.method.y)), resolveColumn(chart.method.y)])
+                  })
+              }
               break
             case 'minmax':
               query

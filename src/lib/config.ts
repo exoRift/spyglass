@@ -52,6 +52,7 @@ const Chart = type({
       fn: 'string'
     })
   ),
+  'forceXAsDate?': 'true',
   'expressions?': 'Record<string, string>',
   'breakdown?': 'string | null',
   'cumulative?': 'true',

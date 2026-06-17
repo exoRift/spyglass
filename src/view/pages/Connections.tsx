@@ -287,7 +287,7 @@ function ConnectionCreateButton ({ config }: { config: Config }): React.ReactNod
         void window.saveConfigWithGuard(config)
           .then(() => {
             setShowCreateModal(false)
-            form.reset()
+            setTimeout(() => form.reset(), 200)
           })
 
         break
@@ -394,7 +394,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
         void window.saveConfigWithGuard(config)
           .then(() => {
             setShowEditModal(false)
-            form.reset()
+            setTimeout(() => form.reset(), 200)
           })
 
         break
@@ -432,7 +432,7 @@ function ConnectionEditButton ({ config, connIndex, startEditing }: { config: Co
             </Modal.Header>
 
             <Modal.Body>
-              <ConnectionForm key={+connection} id={formID} defaultValues={connection} onSubmit={onSubmit} />
+              <ConnectionForm key={connection as any} id={formID} defaultValues={connection} onSubmit={onSubmit} />
             </Modal.Body>
 
             <Modal.Actions>

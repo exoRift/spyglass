@@ -47,7 +47,7 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
           x2: lowPoint[0],
           y2: lowPoint[1]
         },
-        transition: ['shape'],
+        transition: 'shape',
         style: lineStyle
       },
       {
@@ -67,7 +67,7 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
           x2: highPoint[0]! + width,
           y2: highPoint[1]
         },
-        transition: ['shape'],
+        transition: 'shape',
         style: lineStyle
       },
       {
@@ -87,7 +87,7 @@ const errorBoundRender: echarts.CustomSeriesRenderItem = function (params, api) 
           x2: lowPoint[0]! + width,
           y2: lowPoint[1]
         },
-        transition: ['shape'],
+        transition: 'shape',
         style: lineStyle
       }
     ]
@@ -361,13 +361,14 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     window.addEventListener('moduleinstalled', query, { signal: aborter.signal })
 
     return () => aborter.abort()
-  }, [canQuery, chart, +chart])
+  }, [canQuery, chart])
 
   useEffect(() => {
     isAnimating.current = true
 
     let isTimeXAxis
-    if ('xTimeBin' in chart.method && chart.method.xTimeBin === 'weekday') isTimeXAxis = false
+    if (chart.forceXAsDate) isTimeXAxis = true
+    else if ('xTimeBin' in chart.method && chart.method.xTimeBin === 'weekday') isTimeXAxis = false
     else if (tables && chart.table && 'x' in chart.method && chart.method.x) {
       const x = chart.method.x
 
@@ -393,7 +394,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
             return `
               ${params.marker}
               ${isTimeXAxis ? params.name : formatValue(params.name, chart.xUnit)}<br/>
-              <strong>${formatValue(params.value, chart.yUnit)}</strong>
+              <strong>${formatValue(params.value, chart.yUnit)}</strong> ${chart.yTitle}
               (<strong>${params.percent}%</strong>)
             `
           }
@@ -472,7 +473,8 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chart.traceColors,
     chart.xUnit,
     chart.yUnit,
-    chart.xLabelAngle
+    chart.xLabelAngle,
+    chart.forceXAsDate
   ])
 
   useEffect(() => {
@@ -508,7 +510,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         universalTransition: true
       })
 
-      if (chart.style !== 'pie' && (!chart.cumulative || chart.method.type === 'custom') && ((chart.method.type === 'aggregate_avg' && chart.method.bars) || (chart.method.type === 'custom' && groupRows[0] && 'lowBar' in groupRows[0] && 'highBar' in groupRows[0]))) {
+      if ((chart.style !== 'pie' && !chart.cumulative && chart.method.type === 'aggregate_avg' && chart.method.bars) || chart.method.type === 'custom') {
         series.push({
           type: 'custom',
           name: chart.method.type === 'aggregate_avg'
@@ -518,10 +520,12 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
             : 'Error',
           renderItem: errorBoundRender,
           color: chart.barColor ?? DEFAULT_BAR_COLOR,
-          data: groupRows
-            .map((r) => ({
-              value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)]
-            })),
+          data: groupRows[0] && 'lowBar' in groupRows[0] && 'highBar' in groupRows[0]
+            ? groupRows
+              .map((r) => ({
+                value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, parseFloat(r.y), parseFloat(r.lowBar), parseFloat(r.highBar)]
+              }))
+            : undefined,
           itemStyle: {
             borderWidth: 1.5
           },
@@ -539,7 +543,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
       const allSelected = !Object.keys(selected).length
 
-      return `{label|Total:} {value|${formatValue(rows.reduce((a, r) => allSelected || selected?.[r.x] ? a + parseFloat(r.y) : a, 0), chart.yUnit)}}`
+      return `{label|Total ${chart.yTitle}:} {value|${formatValue(rows.reduce((a, r) => allSelected || selected?.[r.x] ? a + parseFloat(r.y) : a, 0), chart.yUnit)}}`
     }
 
     chartRef.current?.setOption({

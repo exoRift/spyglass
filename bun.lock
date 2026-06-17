@@ -16,7 +16,7 @@
         "open": "^11.0.0",
         "open-file-manager-dialog": "^1.0.0",
         "react-daisyui": "^5.0.5",
-        "react-exo-hooks": "^2.6.1",
+        "react-exo-hooks": "^3.0.1",
         "react-icons": "^5.5.0",
         "tailwind-merge": "^3.6.0",
         "webview-bun": "github:exoRift/webview-bun#ecbf63d",
@@ -1113,7 +1113,7 @@
 
     "react-dom": ["react-dom@19.2.6", "", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.6" } }, "sha512-0prMI+hvBbPjsWnxDLxlCGyM8PN6UuWjEUCYmZhO67xIV9Xasa/r/vDnq+Xyq4Lo27g8QSbO5YzARu0D1Sps3g=="],
 
-    "react-exo-hooks": ["react-exo-hooks@2.6.1", "", { "peerDependencies": { "react": "^19.1.0", "typescript": "^5" } }, "sha512-ZG05niHK1OfK0Z8jOjb3B0NB6R4DKnWRf9cvcJPxjsNTHICLCGkrTxr0FTwcKDKo/gDui4WbIbhdoiDa4qB+tA=="],
+    "react-exo-hooks": ["react-exo-hooks@3.0.1", "", { "peerDependencies": { "react": "^19.1.0", "typescript": "^5" } }, "sha512-BZYvL7duqqBFw4oQZ1KfB16XHBUdW/T05fdPCWphQ/hpcFugfBp9LQHip9teGsgCbZPFva4P0QPH/4dUcnHJDA=="],
 
     "react-icons": ["react-icons@5.5.0", "", { "peerDependencies": { "react": "*" } }, "sha512-MEFcXdkP3dLo8uumGI5xN3lDFNsRtrjbOEKDLD7yv76v4wpnEq2Lt2qeHaQOr34I/wPN3s3+N08WkQ+CW37Xiw=="],
 

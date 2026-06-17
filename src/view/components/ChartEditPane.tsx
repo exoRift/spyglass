@@ -15,6 +15,20 @@ import { javascript } from '@codemirror/lang-javascript'
 import { MdDelete, MdHelp, MdArrowUpward, MdAdd, MdSettings } from 'react-icons/md'
 import { IoMdArrowDropdown } from 'react-icons/io'
 
+const NUMERIC_TYPES = new Set([
+  'smallint',
+  'integer',
+  'bigint',
+  'decimal',
+  'numeric',
+  'real',
+  'double precision',
+  'smallserial',
+  'serial',
+  'bigserial',
+  'expression'
+])
+
 type Widen<T> = {
   [K in keyof T]: T[K] extends string ? string : T[K]
 }
@@ -125,6 +139,9 @@ const PasteListener = EditorView.domEventHandlers({
 
 /**
  * A pane for configuring nearly everything in a chart
+ * @todo Reset ForceXAsDate on change
+ * @todo Only set fields to null if they're no longer supported, rather than always and on certain changes (sortCol)
+ * @todo Weighted averaging ("weight" column?)
  * @param props
  * @param props.tables      The available tables that can be used
  * @param props.editedChart A reference to the chart this pane is editing
@@ -203,7 +220,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
         is_unique: false,
         max_length: null,
         table: editedChart.table!,
-        numeric_precision: 0, // Enable number features
+        numeric_precision: null,
         numeric_scale: null,
         comment: null,
         foreign_key_schema: null,
@@ -216,7 +233,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
       ...c,
       display_name: c.data_type === 'expression' ? c.name : getColumnNonConflictName(c, columns)
     }))
-  }, [tables, editedChart.table, editedChart.joins, editedChart.expressions, +editedChart])
+  }, [tables, editedChart.table, editedChart.joins, editedChart.expressions])
 
   useEffect(() => {
     const aborter = new AbortController()
@@ -239,10 +256,13 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
         <Input size='sm' value={editedChart.subtitle} onChange={(e) => editChart('subtitle', e.currentTarget.value)} className='w-full' id='subtitle' name='subtitle' placeholder='Subtitle...' />
       </div>
 
-      {error && editedChart.method.type !== 'custom' && (
-        <label className='label'>
-          <span className='label-text text-xs text-error text-wrap'>{error.message}</span>
-        </label>
+      {error && editedChart.method.type !== 'custom' && createPortal(
+        (
+          <label className='absolute block max-w-96 left-2 bottom-2 label'>
+            <span className='label-text text-xs text-error text-wrap'>{error.message}</span>
+          </label>
+        ),
+        document.body
       )}
 
       <div className='fieldset w-full'>
@@ -501,43 +521,52 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
               </button>
             </div>
           </div>
-          <details id='xSettings' open={!editedChart.table || (!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision !== 'number') ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+          <details id='xSettings' open={!editedChart.table || !xColumn || !NUMERIC_TYPES.has(xColumn.data_type) ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-24 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
             <summary className='hidden' />
 
-            <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
-              {!xColumn?.data_type.match(/date|time/) && typeof xColumn?.numeric_precision === 'number' && (
-                <div className='fieldset w-full'>
-                  <label htmlFor='xUnit' className='label'>
-                    <span className='label-text'>X Axis Unit Type</span>
-                  </label>
-                  <Select value={editedChart.xUnit ?? ''} onChange={(e) => editChart('xUnit', e.currentTarget.value as typeof editedChart.xUnit || undefined)} className='w-full' id='xUnit' name='xUnit'>
-                    <Select.Option value=''>Auto</Select.Option>
-                    <Select.Option value='currency'>Currency</Select.Option>
-                    <Select.Option value='percentage'>Percentage</Select.Option>
-                  </Select>
-                </div>
-              )}
-
-              {xColumn?.data_type.match(/date|time/) && (
-                <div className='fieldset w-full'>
-                  <label htmlFor='xTimeBin' className='label'>
-                    <span className='label-text'>X Time Bin</span>
-                  </label>
-                  <Select disabled={editedChart.method.type === 'custom'} value={editedChart.method.type === 'custom' ? '' : editedChart.method.xTimeBin ?? ''} onChange={(e) => editChart('method.xTimeBin', (e.currentTarget.value as TimeUnit | '') || undefined)} id='xTimeBin' name='xTimeBin'>
-                    <Select.Option value=''>None</Select.Option>
-
-                    {TIME_UNITS.map((unit) => (
-                      <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
-                    ))}
-                  </Select>
-                </div>
-              )}
-
-              <div className='fieldset w-full'>
-                <label htmlFor='xLabelAngle' className='label'>
-                  <span className='label-text'>X Label Angle</span>
+            <div className='transition transition-discrete hidden [:open>&]:block *:grow starting:scale-75 scale-100'>
+              <div className='flex items-center gap-2 fieldset w-full'>
+                <Toggle size='xs' color='secondary' checked={editedChart.forceXAsDate ?? false} onChange={(e) => editChart('forceXAsDate', e.currentTarget.checked || undefined)} name='forceXAsDate' id='forceXAsDate' />
+                <label htmlFor='forceXAsDate' className='label transition [:checked+&]:text-primary'>
+                  <span className='label-text'>Force X as date</span>
                 </label>
-                <Input type='number' placeholder={'0\u00b0'} value={editedChart.xLabelAngle?.toString() ?? ''} onChange={(e) => editChart('xLabelAngle', e.currentTarget.valueAsNumber)} />
+              </div>
+
+              <div className='flex gap-4'>
+                {xColumn && NUMERIC_TYPES.has(xColumn.data_type) && (
+                  <div className='fieldset w-full'>
+                    <label htmlFor='xUnit' className='label'>
+                      <span className='label-text'>X Axis Unit Type</span>
+                    </label>
+                    <Select value={editedChart.xUnit ?? ''} onChange={(e) => editChart('xUnit', e.currentTarget.value as typeof editedChart.xUnit || undefined)} className='w-full' id='xUnit' name='xUnit'>
+                      <Select.Option value=''>Auto</Select.Option>
+                      <Select.Option value='currency'>Currency</Select.Option>
+                      <Select.Option value='percentage'>Percentage</Select.Option>
+                    </Select>
+                  </div>
+                )}
+
+                {(xColumn?.data_type.match(/date|time|expression/) || editedChart.forceXAsDate) && (
+                  <div className='fieldset w-full'>
+                    <label htmlFor='xTimeBin' className='label'>
+                      <span className='label-text'>X Time Bin</span>
+                    </label>
+                    <Select disabled={editedChart.method.type === 'custom'} value={editedChart.method.type === 'custom' ? '' : editedChart.method.xTimeBin ?? ''} onChange={(e) => editChart('method.xTimeBin', (e.currentTarget.value as TimeUnit | '') || undefined)} id='xTimeBin' name='xTimeBin'>
+                      <Select.Option value=''>None</Select.Option>
+
+                      {TIME_UNITS.map((unit) => (
+                        <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
+
+                <div className='fieldset w-full'>
+                  <label htmlFor='xLabelAngle' className='label'>
+                    <span className='label-text'>X Label Angle</span>
+                  </label>
+                  <Input type='number' placeholder={'0\u00b0'} value={editedChart.xLabelAngle?.toString() ?? ''} onChange={(e) => editChart('xLabelAngle', e.currentTarget.valueAsNumber)} />
+                </div>
               </div>
             </div>
           </details>
@@ -559,7 +588,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
               <Select disabled={!editedChart.table || editedChart.method.type === 'aggregate_count' || editedChart.method.type === 'custom'} value={editedChart.method.type === 'aggregate_count' || editedChart.method.type === 'custom' ? '' : editedChart.method.y ?? ''} onChange={(e) => editChart('method.y', e.currentTarget.value)} className='w-full' id='yColumn' name='yColumn'>
                 <Select.Option value='' disabled>Choose a column</Select.Option>
 
-                {(editedChart.method.type === 'aggregate_count_unique' ? usableColumns : usableColumns?.filter((c) => c.numeric_precision !== null))?.map((c) => (
+                {(editedChart.method.type === 'aggregate_count_unique' ? usableColumns : usableColumns?.filter((c) => NUMERIC_TYPES.has(c.data_type)))?.map((c) => (
                   <Select.Option value={c.identifier} key={c.identifier}>{c.display_name}</Select.Option>
                 ))}
               </Select>
@@ -570,17 +599,17 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
                 <span className='label-text'>S</span>
               </label>
 
-              <button onClick={() => { const details = document.getElementById('ySettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number'}>
+              <button onClick={() => { const details = document.getElementById('ySettings') as HTMLDetailsElement; details.open = !details.open }} className='transition group not-disabled:cursor-pointer disabled:opacity-50 flex items-center h-10' disabled={!yColumn || !NUMERIC_TYPES.has(yColumn.data_type)}>
                 <MdSettings className='text-2xl transition not-disabled:group-hover:-rotate-12 [section:not(:has(section)):has(&):has(details:open)_&]:text-secondary [section:not(:has(section)):has(&):has(details:open)_&]:rotate-45' />
               </button>
             </div>
           </div>
 
-          <details id='ySettings' open={!editedChart.table || Boolean(yColumn?.data_type.match(/date|time/)) || typeof yColumn?.numeric_precision !== 'number' ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
+          <details id='ySettings' open={!editedChart.table || !yColumn || !NUMERIC_TYPES.has(yColumn.data_type) ? false : undefined} className='transition-all bg-base-300 h-0 opacity-0 open:h-20 open:opacity-100 open:bg-base-300/0 overflow-hidden'>
             <summary className='hidden' />
 
             <div className='transition transition-discrete hidden [:open>&]:flex gap-4 *:grow starting:scale-75 scale-100'>
-              {!yColumn?.data_type.match(/date|time/) && typeof yColumn?.numeric_precision === 'number' && (
+              {yColumn && NUMERIC_TYPES.has(yColumn.data_type) && (
                 <div className='fieldset w-full'>
                   <label htmlFor='xUnit' className='label'>
                     <span className='label-text'>Y Axis Unit Type</span>
@@ -664,7 +693,19 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
         <label htmlFor='where' className='label'>
           <span className='label-text'>Filter</span>
         </label>
-        <DebouncedInput delay={500} placeholder='Raw SQL WHERE Clause...' value={editedChart.where ?? ''} onDebouncedChange={(v) => editChart('where', v)} className='w-full' id='where' name='where' />
+        <DebouncedInput
+          delay={500}
+          placeholder='Raw SQL WHERE Clause...'
+          value={editedChart.where ?? ''}
+          onDebouncedChange={(v) => editChart('where', v)}
+          className='w-full'
+          id='where'
+          name='where'
+          autoCapitalize='off'
+          autoComplete='off'
+          autoCorrect='off'
+          spellCheck='false'
+        />
       </div>
 
       <div className='fieldset w-full'>

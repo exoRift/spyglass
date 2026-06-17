@@ -69,7 +69,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       minHeight: 10,
       maxWidth: 100
     }))
-  }, [errors, +errors, connection.charts, +connection.charts, connected, tables])
+  }, [errors, connection.charts, connected, tables])
 
   const createWidget = useCallback((e: React.MouseEvent) => {
     const x = Math.min(Math.round(e.clientX / e.currentTarget.clientWidth * 100), 100 - 30)
@@ -159,7 +159,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
     // @ts-expect-error
   }, [connection.details.client, connection.details.password, connIndex, password, retryConnection])
 
-  useEffect(() => setIsUnsaved((prior) => prior !== null), [connection, +connection])
+  useEffect(() => setIsUnsaved((prior) => prior !== null), [connection])
 
   useEffect(() => {
     // Dashup widgets start at the wrong width for some reason. This will correct them
@@ -233,7 +233,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
                 <h1 className='text-2xl font-bold'>Edit Chart</h1>
 
                 <Tooltip color='info' message='Duplicate' position='right'>
-                  <button className='flex items-center text-info text-xl cursor-pointer' onClick={() => { const clone = structuredClone(getUnproxiedObject(connection.charts[editing!]!)); clone.id = connection.chartIdIncrementor++; connection.charts.splice(editing!, 0, clone); setEditing(null) }}>
+                  <button className='flex items-center text-info text-xl cursor-pointer' onClick={() => { const clone = structuredClone(getUnproxiedObject(connection.charts[editing!]!)); clone.id = connection.chartIdIncrementor++; connection.charts.splice(editing!, 0, clone); const widgets = document.querySelectorAll('[data-editing]'); widgets.forEach((w) => w.toggleAttribute('data-editing', false)); setEditing(null) }}>
                     <MdFileCopy />
                   </button>
                 </Tooltip>

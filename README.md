@@ -8,16 +8,27 @@ Spyglass is a standalone database visualization dashboard for easy insights and 
 Think of Spyglass as a lightweight version of Microsoft PowerBI. You can construct dashboards of various charts powered by data from your database, offering a live preview to your data and informatics.
 
 ## Customizable Layout
+![Layout](graphics/Layout.png)
 
-## Line Charts
+## Line Graphs
+![Line Graph](graphics/Line%20Graph.png)
 
 ## Bar Charts
 
+<img src='graphics/Bar%20Chart.png' alt='Bar Chart without Breakdown' width='200' />
+
+<img src='graphics/Bar%20Chart%20Breakdown.png' alt='Bar Chart with Breakdown' width='400' />
+
 ## Pie Charts
+
+<img src='graphics/Pie%20Chart.png' alt='Pie Chart' width='200' />
 
 ## Complex Data Display
 
+<img src='graphics/Complex%20Controls.png' alt='Complex Controls' width='200' />
+
 ## Multiple Connections
+![Multiple Connections](graphics/Multiple%20Connections.png)
 
 ## Supported Databases
 Spyglass supports
