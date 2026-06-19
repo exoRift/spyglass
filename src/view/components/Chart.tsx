@@ -208,7 +208,6 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       tooltip: {
         axisPointer: {
-          type: 'line',
           lineStyle: {
             color: 'var(--color-neutral)',
             type: 'dashed'
@@ -217,7 +216,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
             color: 'var(--color-neutral)'
           },
           shadowStyle: {
-            color: 'var(--color-neutral)'
+            color: 'color-mix(var(--color-neutral) 30%, #0000 70%)'
           }
         },
         backgroundColor: 'var(--color-base-200)',
@@ -354,10 +353,16 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     })
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'cross' } } })
+      if (e.key === 'Shift') {
+        const option: any = chartRef.current?.getOption()
+        if (option?.tooltip?.[0]?.axisPointer?.type === 'line') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'cross' } } })
+      }
     }, { signal: aborter.signal, passive: true })
     document.addEventListener('keyup', (e) => {
-      if (e.key === 'Shift') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'line' } } })
+      if (e.key === 'Shift') {
+        const option: any = chartRef.current?.getOption()
+        if (option?.tooltip?.[0]?.axisPointer?.type === 'cross') chartRef.current?.setOption({ tooltip: { axisPointer: { type: 'line' } } })
+      }
     }, { signal: aborter.signal, passive: true })
 
     document.addEventListener('mouseup', () => {
@@ -432,6 +437,9 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       tooltip: {
         trigger: chart.style === 'pie' || chart.style === 'heatmap' ? 'item' : 'axis',
+        axisPointer: {
+          type: chart.style === 'bar' ? 'shadow' : 'line'
+        },
         formatter: chart.style === 'pie'
           ? (params: any) => {
             return `
