@@ -299,12 +299,19 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chartRef.current.getZr().on('mousedown', (e: any) => {
       const now = Date.now()
 
-      if (now - lastZoomClick < RESET_ZOOM_DOUBLE_CLICK_LEEWAY_MS && e.target?.cursor === 'crosshair') {
-        chartRef.current?.dispatchAction({
-          type: 'dataZoom',
-          start: 0,
-          end: 100
-        })
+      if (now - lastZoomClick < RESET_ZOOM_DOUBLE_CLICK_LEEWAY_MS) {
+        if (e.target?.cursor === 'crosshair') {
+          chartRef.current?.dispatchAction({
+            type: 'dataZoom',
+            start: 0,
+            end: 100
+          })
+        } else if (e.target?.cursor === 'ew-resize') {
+          chartRef.current?.dispatchAction({
+            type: 'selectDataRange',
+            selected: [-Infinity, Infinity]
+          })
+        }
       }
 
       lastZoomClick = now
@@ -533,7 +540,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     const shouldAccumulate = chart.cumulative && chart.style !== 'pie' && chart.method.type !== 'custom'
 
     let heatmapMin = Infinity
-    let heatmapMax = 0
+    let heatmapMax = -Infinity
     const heatmapSeries = new Map<number, echarts.HeatmapSeriesOption>()
     const isWeekdayXAxis = 'xTimeBin' in chart.method && chart.method.xTimeBin === 'weekday'
     const grouped = chart.breakdown ? Object.groupBy(rows, (r) => r.group) : { [chart.yTitle]: rows }
