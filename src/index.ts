@@ -10,7 +10,7 @@ import vm from 'vm'
 import os from 'os'
 import { spawnSync } from 'child_process'
 import fs from 'fs'
-import { openFileManagerDialog } from 'open-file-manager-dialog'
+import { openFile } from 'popups-file-dialog'
 
 import { type Chart, type Connection, Config } from './lib/config'
 import { getColumnIdentifier, getColumnNonConflictName, getTableNonConflictName, type Table } from './lib/constants'
@@ -36,7 +36,7 @@ if (process.env.NODE_ENV === 'production') {
   }
 
   const encoder = new TextEncoder()
-  const LOG_PATH = path.resolve(os.tmpdir(), `spyglass-${new Date().toISOString()}.log`)
+  const LOG_PATH = path.resolve(os.tmpdir(), `spyglass-${new Date().toISOString().replaceAll(':', '-')}.log`)
   const file = Bun.file(LOG_PATH)
   const sink = file.writer()
 
@@ -473,13 +473,17 @@ const binds = {
         throw new Error('Failed to execute query', { cause: err })
       })
   },
-  promptFile (accept?: string[] | null) {
-    return openFileManagerDialog(process.cwd(), { filter: accept ?? undefined, limit: 1, terminal: 'Spyglass' })
-      .then(({ files, canceled }) => {
-        if (canceled) return null
-        else return files[0] ?? null
-      })
+  promptFile (title: string, accept?: string[] | null) {
+    console.debug(accept)
+    return openFile({
+      title,
+      startPath: process.cwd(),
+      filterPatterns: accept
+    })
+      .then((files) => files[0] ?? null)
       .catch((err) => {
+        if (err instanceof Error && err.message === 'no file selected') return null
+
         throw new Error('Failed to pick a file in selection dialog', { cause: err })
       })
   },

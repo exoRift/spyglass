@@ -11,15 +11,15 @@
         "daisyui": "^5.5.20",
         "dashup": "^1.1.1",
         "echarts": "^6.1.0",
+        "webview-bun": "github:exoRift/webview-bun#5edcdd9",
         "knex": "^3.1.0",
         "knex-schema-inspector": "^3.1.0",
         "open": "^11.0.0",
-        "open-file-manager-dialog": "^1.0.0",
+        "popups-file-dialog": "^1.7.7",
         "react-daisyui": "^5.0.5",
         "react-exo-hooks": "^3.0.1",
         "react-icons": "^5.5.0",
         "tailwind-merge": "^3.6.0",
-        "webview-bun": "github:exoRift/webview-bun#ecbf63d",
       },
       "devDependencies": {
         "@babel/core": "^7.29.7",
@@ -549,8 +549,6 @@
 
     "detect-libc": ["detect-libc@2.0.4", "", {}, "sha512-3UDv+G9CsCKO1WKMGw9fwq/SWJYbI0c5Y7LU1AXYoDdbhE2AHQ6N6Nb34sG8Fj7T5APy8qXDCKuuIHd1BR0tVA=="],
 
-    "detect-terminal": ["detect-terminal@1.1.2", "", {}, "sha512-mLB+qvOc9VYO0VqLNbqcLjb9R9AvbWQyk9n8qx0aryoykE4ALX0FNp/eP8GE2RxppYBofsoKxfJ3L15X2/rJ8Q=="],
-
     "doctrine": ["doctrine@2.1.0", "", { "dependencies": { "esutils": "^2.0.2" } }, "sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw=="],
 
     "dom-walk": ["dom-walk@0.1.2", "", {}, "sha512-6QvTW9mrGeIegrFXdtQi9pk7O/nSK6lSdXW2eqUspN5LWD7UTji2Fqw5V2YLjBpHEoU9Xl/eUWNpDeZvoyOv2w=="],
@@ -1005,14 +1003,6 @@
 
     "open": ["open@11.0.0", "", { "dependencies": { "default-browser": "^5.4.0", "define-lazy-prop": "^3.0.0", "is-in-ssh": "^1.0.0", "is-inside-container": "^1.0.0", "powershell-utils": "^0.1.0", "wsl-utils": "^0.3.0" } }, "sha512-smsWv2LzFjP03xmvFoJ331ss6h+jixfA4UUV/Bsiyuu4YJPfN+FIQGOIiv4w9/+MoHkfkJ22UIaQWRVFRfH6Vw=="],
 
-    "open-file-manager-dialog": ["open-file-manager-dialog@1.0.0", "", { "dependencies": { "open-finder-dialog": "^1.0.0", "open-linux-file-dialog": "^1.0.0", "open-windows-file-dialog": "^1.0.0" } }, "sha512-kcDP49AELV2uvAJfjeWoahhLHjncO9sOqkKoKkCFyoGjFRwpYvgFtKR1GoUY+YfuqPTFkViRY34xQQmPJIFHPA=="],
-
-    "open-finder-dialog": ["open-finder-dialog@1.0.1", "", { "dependencies": { "detect-terminal": "^1.1.2" } }, "sha512-0DWEanDW90F3vIg8wDb/wtbOAE94taFtrn5tLlGGLjoQdA/IOv2IsAY0UadG5z7ZRR+EMU9+qbzmgBaMjUNOIg=="],
-
-    "open-linux-file-dialog": ["open-linux-file-dialog@1.0.0", "", {}, "sha512-ZXg03ompcTGhef0bIQKmMTYbKVwn/nIPeLW1z5akWcpezEpIY56rb+OVrHYLD0uZ6NrcDovBokG+3DUp+DUodg=="],
-
-    "open-windows-file-dialog": ["open-windows-file-dialog@1.0.0", "", {}, "sha512-53Ah+ZBNoJkI/ToRXYpJCCL2FbCxC/1LU1UA7IaifvbSfBfXfuq+SLtPXCDi3RXjDiaUyRBdmg8jL/8fleX+BQ=="],
-
     "optionator": ["optionator@0.9.4", "", { "dependencies": { "deep-is": "^0.1.3", "fast-levenshtein": "^2.0.6", "levn": "^0.4.1", "prelude-ls": "^1.2.1", "type-check": "^0.4.0", "word-wrap": "^1.2.5" } }, "sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g=="],
 
     "oracledb": ["oracledb@7.0.0", "", {}, "sha512-aPt1oB++zOQ0QsuRLlSbQjydTOg1RTMmfnShoEfETfgiZ0uzmCptHfK/pNLXovl6FVnFoevxX8yfrEme4ksbXg=="],
@@ -1080,6 +1070,8 @@
     "pixelmatch": ["pixelmatch@4.0.2", "", { "dependencies": { "pngjs": "^3.0.0" }, "bin": { "pixelmatch": "bin/pixelmatch" } }, "sha512-J8B6xqiO37sU/gkcMglv6h5Jbd9xNER7aHzpfRdNmV4IbQBzBpe4l9XmbG+xPF/znacgu2jfEw+wHffaq/YkXA=="],
 
     "pngjs": ["pngjs@3.4.0", "", {}, "sha512-NCrCHhWmnQklfH4MtJMRjZ2a8c80qXeMlQMv2uVp9ISJMTt562SbGd6n2oq0PaPgKm7Z6pL9E2UlLIhC+SHL3w=="],
+
+    "popups-file-dialog": ["popups-file-dialog@1.7.7", "", {}, "sha512-KbGcqqEnxuOwVufjP+Ho27/Y74a1d++WhUOk9yABLPIjpBEW7OnLfHJ2UbqplwFhk+0imrVcKyKL6HsTWvJ2ZA=="],
 
     "possible-typed-array-names": ["possible-typed-array-names@1.1.0", "", {}, "sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg=="],
 
@@ -1299,7 +1291,7 @@
 
     "wcwidth": ["wcwidth@1.0.1", "", { "dependencies": { "defaults": "^1.0.3" } }, "sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg=="],
 
-    "webview-bun": ["webview-bun@github:exoRift/webview-bun#ecbf63d", {}, "exoRift-webview-bun-ecbf63d", "sha512-4L3CNon8ANGcgH/SUKX2gKVnTp/G+NuCTYSVzNZH/I6IPZWi0cpYVsEzeESzn+/FWXTT+D0YxrVEjP1Ryi7UmA=="],
+    "webview-bun": ["webview-bun@github:exoRift/webview-bun#5edcdd9", {}, "exoRift-webview-bun-5edcdd9", "sha512-HKawq9/3nLKz9ehh9NNCFsKLyXqASRMHjFt5rZ6wEYeCz6ZD92kiw2upD27ib4iZmI04CS7DHCFYjKDVzhVUng=="],
 
     "which": ["which@2.0.2", "", { "dependencies": { "isexe": "^2.0.0" }, "bin": { "node-which": "./bin/node-which" } }, "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA=="],
 

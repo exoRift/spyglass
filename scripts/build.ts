@@ -15,6 +15,8 @@ const BUILD_OUTPUT_PATH = path.resolve(import.meta.dirname, '../build')
 const ICON_PATH = path.resolve(import.meta.dirname, '../src/assets/logo.png')
 const ICON_SIZES = [16, 32, 48, 64, 128, 256]
 
+await fs.mkdir(BUILD_OUTPUT_PATH, { recursive: true })
+
 /**
  * Resize an image file to a collection of sizes
  * @param sourceFile The path to the source file
@@ -231,10 +233,15 @@ const result = await Bun.build({
     autoloadPackageJson: true,
     execArgv: ['--console-depth=100', '--no-orphans'],
     outfile: 'build/spyglass',
-    windows: process.platform === 'win32'
+    windows: process.platform === 'win32' // TODO: add more info (https://bun.com/docs/bundler/executables#javascript-18)
       ? {
+        title: 'Spyglass',
+        icon: path.resolve(BUILD_OUTPUT_PATH, 'icon.ico'),
         hideConsole: true,
-        icon: path.resolve(BUILD_OUTPUT_PATH, 'icon.ico')
+        publisher: pkg.author.name,
+        version: pkg.version,
+        description: pkg.description,
+        copyright: `Copyright ${new Date().getFullYear()}`
       }
       : undefined
   }
