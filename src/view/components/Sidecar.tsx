@@ -90,26 +90,31 @@ function ConfigSaveFailureGuard (): React.ReactNode {
  * A collection of modals relating to drivers and installation
  */
 function DriverModals (): React.ReactNode {
-  const { Dialog: DriverDialog } = Modal.useDialog()
-  const { Dialog: ForgeDialog } = Modal.useDialog()
-  const { Dialog: InstallationDialog, handleShow: showInstallationDialog } = Modal.useDialog()
+  const driverName = useRef<string>(undefined)
+  const clientName = useRef<string>(undefined)
+  const [open, setOpen] = useState<'driver' | 'forge' | 'result' | undefined>()
+
+  const [loading, setLoading] = useState(false)
 
   const [installationState, setInstallationState] = useState<[string, string | null] | null>(null)
 
   useEffect(() => {
-    if (installationState) {
-      showInstallationDialog()
-      if (!installationState[1]) window.dispatchEvent(new Event('moduleinstalled'))
+    window.alertMissingDriver = (driver, client) => {
+      driverName.current = driver
+      clientName.current = client
+      setOpen(driver === 'data-forge' ? 'forge' : 'driver')
     }
-  }, [installationState, showInstallationDialog])
+
+    return () => { window.alertMissingDriver = undefined }
+  }, [])
 
   return (
     <>
-      <DriverDialog id='driver-modal'>
+      <Modal.Legacy open={open === 'driver'}>
         <Modal.Header className='text-lg font-bold'>Missing Driver</Modal.Header>
         <Modal.Body>
           <p>
-            You are missing the <strong id='driver-name' /> driver to connect to this <strong id='client-name' /> database.
+            You are missing the <strong>{driverName.current}</strong> driver to connect to this <strong>{clientName.current}</strong> database.
           </p>
           <p className='pt-2'>
             Do you want to install it from NPM?
@@ -117,14 +122,26 @@ function DriverModals (): React.ReactNode {
         </Modal.Body>
 
         <Modal.Actions>
-          <form method='dialog' className='contents'>
-            <Button>No</Button>
-            <Button color='success' onClick={() => window.installDriver(window._missingDriver!).catch((err) => err).then((res) => setInstallationState([window._missingDriver!, res]))}>Install</Button>
-          </form>
+          <Button disabled={loading} onClick={() => setOpen(undefined)}>No</Button>
+          <Button
+            color='success'
+            disabled={loading}
+            loading={loading}
+            onClick={(e) => {
+              e.preventDefault()
+              setLoading(true)
+              void window.installDriver(driverName.current!)
+                .catch((err) => err)
+                .then((res) => { setInstallationState([driverName.current!, res]); window.dispatchEvent(new Event('moduleinstalled')) })
+                .finally(() => { setOpen('result'); setLoading(false) })
+            }}
+          >
+            Install
+          </Button>
         </Modal.Actions>
-      </DriverDialog>
+      </Modal.Legacy>
 
-      <ForgeDialog id='forge-modal'>
+      <Modal.Legacy open={open === 'forge'}>
         <Modal.Header className='text-lg font-bold'>Missing Driver</Modal.Header>
         <Modal.Body>
           <p>
@@ -138,13 +155,27 @@ function DriverModals (): React.ReactNode {
 
         <Modal.Actions>
           <form method='dialog' className='contents'>
-            <Button>No</Button>
-            <Button color='success' onClick={() => window.installDriver('data-forge').catch(() => null).then((res) => setInstallationState(['data-forge', res]))}>Install</Button>
+            <Button disabled={loading} onClick={() => setOpen(undefined)}>No</Button>
+            <Button
+              color='success'
+              disabled={loading}
+              loading={loading}
+              onClick={(e) => {
+                e.preventDefault()
+                setLoading(true)
+                void window.installDriver('data-forge')
+                  .catch((err) => err)
+                  .then((res) => { setInstallationState(['data-forge', res]); window.dispatchEvent(new Event('moduleinstalled')) })
+                  .finally(() => { setOpen('result'); setLoading(false) })
+              }}
+            >
+              Install
+            </Button>
           </form>
         </Modal.Actions>
-      </ForgeDialog>
+      </Modal.Legacy>
 
-      <InstallationDialog>
+      <Modal.Legacy open={open === 'result'}>
         <Modal.Header className={installationState?.[1] ? 'text-error' : 'text-success'}>{installationState?.[1] ? 'Error!' : 'Success!'}</Modal.Header>
 
         <Modal.Body>
@@ -166,11 +197,11 @@ function DriverModals (): React.ReactNode {
         <Modal.Actions>
           <form method='dialog' className='contents'>
             {installationState?.[1]
-              ? <Button>OK</Button>
-              : <Button color='primary'>Cool!</Button>}
+              ? <Button onClick={() => setOpen(undefined)}>OK</Button>
+              : <Button onClick={() => setOpen(undefined)} color='primary'>Cool!</Button>}
           </form>
         </Modal.Actions>
-      </InstallationDialog>
+      </Modal.Legacy>
     </>
   )
 }

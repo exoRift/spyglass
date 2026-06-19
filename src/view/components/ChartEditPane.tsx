@@ -668,7 +668,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
                 onDebouncedChange={(v) => editChart('method.fn', v)}
               />
               {!isForgeInstalled && (
-                <Button size='xs' color='neutral' onClick={() => (document.getElementById('forge-modal') as HTMLDialogElement).showModal()}>Install DataForge (optional)</Button>
+                <Button size='xs' color='neutral' onClick={() => window.alertMissingDriver?.('data-forge')}>Install DataForge (optional)</Button>
               )}
               {error && (
                 <label className='label' htmlFor='mapFn'>

@@ -152,7 +152,7 @@ async function constructConnection ({ client, ...details }: Knex.Knex.StaticConn
   const installed = moduleExists(driver)
   if (!installed) {
     logger.info(`Alerting user to missing ${client} driver (${driver})`)
-    webview.eval(`window._missingDriver = '${driver}'; document.getElementById('driver-name').innerText = '${driver}'; document.getElementById('client-name').innerText = '${client}'; document.getElementById('driver-modal').showModal()`)
+    webview.eval(`window.alertMissingDriver?.('${driver}', '${client}')`)
     throw new Error('Could not construct connection. (Is the driver installed?)')
   }
 
