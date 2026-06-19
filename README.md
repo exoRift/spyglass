@@ -1,4 +1,4 @@
-# Spyglass
+# <img src='src/assets/logo.png' alt='Spyglass Logo' width='24' /> Spyglass
 
 [Download](https://github.com/exoRift/spyglass/releases)
 
