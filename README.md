@@ -23,9 +23,9 @@ Think of Spyglass as a lightweight version of Microsoft PowerBI. You can constru
 
 <img src='graphics/Pie%20Chart.png' alt='Pie Chart' width='200' />
 
-## Complex Data Display
+## Advanced Data Controls
 
-<img src='graphics/Complex%20Controls.png' alt='Complex Controls' width='200' />
+![Complex Controls](graphics/Complex%20Controls.png)
 
 ## Multiple Connections
 ![Multiple Connections](graphics/Multiple%20Connections.png)
