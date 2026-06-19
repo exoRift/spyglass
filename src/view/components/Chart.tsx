@@ -161,6 +161,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
   const isAnimating = useRef(true)
   const waitingForResize = useRef(false)
 
+  const [resizeCount, setResizeCount] = useState(0)
   const [rows, setRows] = useState<any[]>([])
 
   const resize = useCallback(() => {
@@ -172,6 +173,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         if (isAnimating.current) return void requestAnimationFrame(_resize)
 
         chartRef.current?.resize()
+        setResizeCount((prior) => prior + 1)
       }
 
       waitingForResize.current = false
@@ -195,6 +197,11 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         }
       },
       legend: {
+        textStyle: {
+          color: 'var(--color-base-content)'
+        }
+      },
+      visualMap: {
         textStyle: {
           color: 'var(--color-base-content)'
         }
@@ -253,6 +260,26 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         label: {
           color: 'var(--color-base-content)'
         }
+      },
+      calendar: {
+        splitLine: {
+          lineStyle: {
+            color: 'var(--color-accent)'
+          }
+        },
+        itemStyle: {
+          borderColor: 'var(--color-base-200)',
+          color: 'var(--color-base-300)'
+        },
+        dayLabel: {
+          color: 'var(--color-base-content)'
+        },
+        monthLabel: {
+          color: 'var(--color-base-content)'
+        },
+        yearLabel: {
+          color: 'var(--color-base-content)'
+        }
       }
     }
 
@@ -265,6 +292,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
     const observer = new ResizeObserver(resize)
     if (widget) observer.observe(widget)
+    setTimeout(() => setResizeCount(2), 100) // Fallback if it doesn't resize twice
 
     chartRef.current.on('finished', () => { isAnimating.current = false })
     let lastZoomClick = Date.now()
@@ -396,7 +424,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         left: 'center'
       },
       tooltip: {
-        trigger: chart.style === 'pie' ? 'item' : 'axis',
+        trigger: chart.style === 'pie' || chart.style === 'heatmap' ? 'item' : 'axis',
         formatter: chart.style === 'pie'
           ? (params: any) => {
             return `
@@ -406,8 +434,16 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
               (<strong>${params.percent}%</strong>)
             `
           }
-          : (params: any) => {
-            return `
+          : chart.style === 'heatmap'
+            ? (params: any) => {
+              return `
+                ${params.marker}
+                ${params.value[0].toLocaleDateString()}<br/>
+                <strong>${formatValue(params.value[1], chart.yUnit)}</strong> ${chart.yTitle}
+              `
+            }
+            : (params: any) => {
+              return `
               ${params[0].axisType.includes('time') ? new Date(params[0].axisValue).toLocaleString() : formatValue(params[0].axisValue, chart.xUnit)}
               <br/>
               ${params
@@ -418,7 +454,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
                   : formatValue(p.value[1], chart.yUnit)}</strong>`)
                 .join('<br/>')}
             `
-          }
+            }
       },
       legend: {
         show: Boolean(chart.table),
@@ -431,7 +467,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       xAxis: {
         type: figuredType,
-        show: Boolean(chart.table) && chart.style !== 'pie',
+        show: Boolean(chart.table) && chart.style !== 'pie' && chart.style !== 'heatmap',
         name: !canQuery || !chart.table || chart.style === 'pie' ? undefined : chart.xTitle,
         nameLocation: 'center',
         nameGap: 30,
@@ -446,7 +482,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       yAxis: {
         type: 'value',
-        show: Boolean(chart.table) && chart.style !== 'pie',
+        show: Boolean(chart.table) && chart.style !== 'pie' && chart.style !== 'heatmap',
         name: !canQuery || !chart.table ? undefined : chart.yTitle,
         nameLocation: 'center',
         nameTextStyle: {
@@ -457,7 +493,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         }
       },
       dataZoom: {
-        show: figuredType === 'time' && chart.style !== 'pie',
+        show: figuredType === 'time' && chart.style !== 'pie' && chart.style !== 'heatmap',
         type: 'slider',
         xAxisIndex: [0],
         filterMode: 'filter',
@@ -485,8 +521,10 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chart.forceXAsDate
   ])
 
+  // Need to wait for 2 resizes or animations break (Waiting for 0 causes resize to interrupt opening anim. Waiting for 1 causes anim to interrupt resize and the chart remains small)
+  const showData = resizeCount >= 2
   useEffect(() => {
-    if (!canQuery) return
+    if (!canQuery || !showData) return
 
     isAnimating.current = true
 
@@ -494,31 +532,74 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
     const shouldAccumulate = chart.cumulative && chart.style !== 'pie' && chart.method.type !== 'custom'
 
+    let heatmapMin = Infinity
+    let heatmapMax = 0
+    const heatmapSeries = new Map<number, echarts.HeatmapSeriesOption>()
     const isWeekdayXAxis = 'xTimeBin' in chart.method && chart.method.xTimeBin === 'weekday'
     const grouped = chart.breakdown ? Object.groupBy(rows, (r) => r.group) : { [chart.yTitle]: rows }
     for (const group in grouped) {
       const groupRows = grouped[group]!
 
       let accumulator = 0
-      series.push({
-        name: group,
-        type: chart.style,
-        data: chart.style === 'pie'
-          ? groupRows
-            .map((r) => ({
-              name: isWeekdayXAxis ? getWeekdayName(r.x) : r.x,
-              value: parseFloat(r.y),
-              itemStyle: r.style
-            })).sort((a, b) => b.value - a.value)
-          : groupRows
-            .map((r) => ({
-              value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, shouldAccumulate ? (accumulator += parseFloat(r.y)) : parseFloat(r.y)],
-              itemStyle: r.style
-            })),
-        universalTransition: true
-      })
+      if (chart.style === 'heatmap') {
+        for (const r of groupRows) {
+          const value = shouldAccumulate ? (accumulator += parseFloat(r.y)) : parseFloat(r.y)
+          if (value > heatmapMax) heatmapMax = value
+          if (value < heatmapMin) heatmapMin = value
 
-      if ((chart.style !== 'pie' && !chart.cumulative && chart.method.type === 'aggregate_avg' && chart.method.bars) || chart.method.type === 'custom') {
+          const date = new Date(r.x)
+          const year = date.getFullYear()
+
+          let serus = heatmapSeries.get(year)
+          if (!serus) {
+            serus = {
+              type: 'heatmap',
+              coordinateSystem: 'calendar',
+              calendarIndex: heatmapSeries.size,
+              data: [],
+              emphasis: {
+                itemStyle: {
+                  borderWidth: 3,
+                  shadowBlur: 10
+                }
+              }
+            }
+            heatmapSeries.set(year, serus)
+          }
+
+          serus.data!.push({
+            value: [date, value],
+            itemStyle: r.style
+          })
+        }
+
+        for (const serus of heatmapSeries.values()) series.push(serus)
+      } else {
+        series.push({
+          name: group,
+          type: chart.style,
+          data: chart.style === 'pie'
+            ? groupRows
+              .map((r) => ({
+                name: isWeekdayXAxis ? getWeekdayName(r.x) : r.x,
+                value: parseFloat(r.y),
+                itemStyle: r.style
+              })).sort((a, b) => b.value - a.value)
+            : groupRows
+              .map((r) => {
+                const value = shouldAccumulate ? (accumulator += parseFloat(r.y)) : parseFloat(r.y)
+                if (value > heatmapMax) heatmapMax = value
+                if (value < heatmapMin) heatmapMin = value
+                return {
+                  value: [isWeekdayXAxis ? getWeekdayName(r.x) : r.x, value],
+                  itemStyle: r.style
+                }
+              }),
+          universalTransition: true
+        })
+      }
+
+      if ((chart.style !== 'pie' && chart.style !== 'heatmap' && !chart.cumulative && chart.method.type === 'aggregate_avg' && chart.method.bars) || chart.method.type === 'custom') {
         series.push({
           type: 'custom',
           name: chart.method.type === 'aggregate_avg'
@@ -559,6 +640,25 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
         ? undefined
         : { data: isWeekdayXAxis ? Array.from({ length: 7 }, (_, i) => getWeekdayName(i)) : rows.map((r) => r.x) },
       series,
+      calendar: chart.style === 'heatmap'
+        ? Array.from(heatmapSeries.keys())
+          .sort((a, b) => a - b)
+          .map((y, i) => ({
+            range: y,
+            top: 80 + (180 * i),
+            cellSize: 15
+          }))
+        : undefined,
+      visualMap: chart.style === 'heatmap'
+        ? {
+          min: heatmapMin,
+          max: heatmapMax,
+          formatter: (v: string | number) => formatValue(v, chart.yUnit),
+          orient: 'horizontal',
+          left: 40,
+          calculable: true
+        }
+        : undefined,
       graphic: chart.style === 'pie'
         ? {
           type: 'text',
@@ -598,6 +698,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     }
   }, [
     canQuery,
+    showData,
     rows,
     chart.yTitle,
     chart.style,

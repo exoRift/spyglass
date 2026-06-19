@@ -141,7 +141,6 @@ const PasteListener = EditorView.domEventHandlers({
  * A pane for configuring nearly everything in a chart
  * @todo Reset ForceXAsDate on change
  * @todo Only set fields to null if they're no longer supported, rather than always and on certain changes (sortCol)
- * @todo Weighted averaging ("weight" column?)
  * @param props
  * @param props.tables      The available tables that can be used
  * @param props.editedChart A reference to the chart this pane is editing
@@ -376,10 +375,11 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
           <label htmlFor='type' className='label'>
             <span className='label-text'>Chart Style</span>
           </label>
-          <Select value={editedChart.style} onChange={(e) => editChart('style', e.currentTarget.value as ChartConfig['style'])} className='w-full' id='type' name='type'>
+          <Select value={editedChart.style} onChange={(e) => editChart('style', e.currentTarget.value as ChartConfig['style'])} className='w-fit' id='type' name='type'>
             <Select.Option value='bar'>Bar</Select.Option>
             <Select.Option value='line'>Line</Select.Option>
             <Select.Option value='pie'>Pie</Select.Option>
+            <Select.Option value='heatmap'>Heatmap</Select.Option>
           </Select>
         </div>
       </div>

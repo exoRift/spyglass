@@ -9,12 +9,13 @@ import { Button } from 'react-daisyui'
  * @param props.className
  * @param props.accept
  * @param props.defaultValue
+ * @param props.description  A description of the file types
  */
-export function NativeFileInput ({ className, accept, defaultValue, ...props }: React.ComponentProps<'input'> & { defaultValue?: string }): React.ReactNode {
+export function NativeFileInput ({ className, accept, defaultValue, description, ...props }: React.ComponentProps<'input'> & { defaultValue?: string, description?: string }): React.ReactNode {
   const [value, setValue] = useState(defaultValue ?? '')
 
   return (
-    <div className={twMerge('file-input', className)} onClick={(e) => { e.preventDefault(); void window.promptFile('Select SQLite Database', accept?.split(', ').map((f) => `*${f}`)).then((f) => f && setValue(f)) }}>
+    <div className={twMerge('file-input', className)} onClick={(e) => { e.preventDefault(); void window.promptFile('Select SQLite Database', accept?.split(', ').map((f) => `*${f}`), description).then((f) => f && setValue(f)) }}>
       <input type='hidden' accept={accept} value={value} {...props} />
       <Button className='-ml-1 mr-2'>Choose File</Button>
       <span className='flex justify-end overflow-hidden'>{value ? value.split('/').at(-1) : 'No file chosen'}</span>

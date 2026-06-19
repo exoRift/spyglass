@@ -58,7 +58,7 @@ const Chart = type({
   'cumulative?': 'true',
   'traceColors?': 'string[]',
   'barColor?': 'string',
-  style: '"bar" | "line" | "pie"',
+  style: '"bar" | "line" | "pie" | "heatmap"',
   'joins?': Join.array(),
   'where?': 'string',
   'xUnit?': ValueUnit,

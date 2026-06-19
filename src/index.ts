@@ -481,11 +481,12 @@ const binds = {
         throw new Error('Failed to execute query', { cause: err })
       })
   },
-  promptFile (title: string, accept?: string[] | null) {
+  promptFile (title: string, accept?: string[] | null, description?: string | null) {
     return openFile({
       title,
       startPath: process.cwd(),
-      filterPatterns: accept ?? undefined
+      filterPatterns: accept ?? undefined,
+      filterPatternsDescription: description ?? undefined
     })
       .catch((err) => {
         if (err instanceof Error && err.message === 'no file selected') return null
