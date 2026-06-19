@@ -26,6 +26,12 @@ export const DEFAULT_TRACE_COLORS = [
   '#ea7ccc'
 ] as const
 
+export const DEFAULT_HEATMAP_COLORS = [
+  '#ee6666',
+  '#fac858',
+  '#91cc75'
+]
+
 /**
  * Get the identifier for a column within the entire database
  * @param column The column

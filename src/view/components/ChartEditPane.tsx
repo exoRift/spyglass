@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
 
 import type { Chart as ChartConfig, TimeUnit } from '../../lib/config'
-import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getColumnNonConflictName, TIME_UNITS, type Table } from '../../lib/constants'
+import { DEFAULT_BAR_COLOR, DEFAULT_HEATMAP_COLORS, DEFAULT_TRACE_COLORS, getColumnNonConflictName, TIME_UNITS, type Table } from '../../lib/constants'
 
 import { Button, Divider, Dropdown, Input, Join, Modal, Select, Toggle, Tooltip } from 'react-daisyui'
 import { DebouncedInput } from '../components/DebouncedInput'
@@ -164,10 +164,18 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
       delete editedChart.joins
     }
 
-    if (field === 'style' && value === 'pie') {
-      editedChart.breakdown = undefined
-      if ('bars' in editedChart.method) editedChart.method.bars = null
-      if (editedChart.yUnit === 'percentage') editedChart.yUnit = undefined
+    if (field === 'style') {
+      if (value === 'pie') {
+        editedChart.breakdown = undefined
+        if ('bars' in editedChart.method) editedChart.method.bars = null
+        if (editedChart.yUnit === 'percentage') editedChart.yUnit = undefined
+      } else if (value === 'heatmap') {
+        editedChart.breakdown = undefined
+        editedChart.forceXAsDate = true
+        if ('bars' in editedChart.method) editedChart.method.bars = null
+        editedChart.sortCol = undefined
+        editedChart.sortDesc = undefined
+      }
     }
 
     if (field === 'method.type') {
@@ -526,9 +534,9 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
 
             <div className='transition transition-discrete hidden [:open>&]:block *:grow starting:scale-75 scale-100'>
               <div className='flex items-center gap-2 fieldset w-full'>
-                <Toggle size='xs' color='secondary' checked={editedChart.forceXAsDate ?? false} onChange={(e) => editChart('forceXAsDate', e.currentTarget.checked || undefined)} name='forceXAsDate' id='forceXAsDate' />
+                <Toggle disabled={editedChart.style === 'heatmap'} size='xs' color='secondary' checked={editedChart.forceXAsDate ?? false} onChange={(e) => editChart('forceXAsDate', e.currentTarget.checked || undefined)} name='forceXAsDate' id='forceXAsDate' />
                 <label htmlFor='forceXAsDate' className='label transition [:checked+&]:text-primary'>
-                  <span className='label-text'>Force X as date</span>
+                  <span className='label-text [:disabled+*>&]:opacity-60'>Force X as date</span>
                 </label>
               </div>
 
@@ -555,7 +563,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
                       <Select.Option value=''>None</Select.Option>
 
                       {TIME_UNITS.map((unit) => (
-                        <Select.Option value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
+                        <Select.Option disabled={unit === 'weekday' && editedChart.style === 'heatmap'} value={unit} key={unit}>{unit.slice(0, 1).toUpperCase() + unit.slice(1)}</Select.Option>
                       ))}
                     </Select>
                   </div>
@@ -565,7 +573,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
                   <label htmlFor='xLabelAngle' className='label'>
                     <span className='label-text'>X Label Angle</span>
                   </label>
-                  <Input type='number' placeholder={'0\u00b0'} value={editedChart.xLabelAngle?.toString() ?? ''} onChange={(e) => editChart('xLabelAngle', e.currentTarget.valueAsNumber)} />
+                  <Input disabled={editedChart.style === 'heatmap'} type='number' placeholder={'0\u00b0'} value={editedChart.xLabelAngle?.toString() ?? ''} onChange={(e) => editChart('xLabelAngle', e.currentTarget.valueAsNumber)} />
                 </div>
               </div>
             </div>
@@ -625,7 +633,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
           </details>
         </section>
 
-        {editedChart.method.type === 'aggregate_avg' && editedChart.style !== 'pie' && (
+        {editedChart.method.type === 'aggregate_avg' && editedChart.style !== 'pie' && editedChart.style !== 'heatmap' && (
           <div className='fieldset w-full'>
             <label htmlFor='bars' className='label'>
               <span className='label-text'>Error Bars</span>
@@ -709,8 +717,8 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
       </div>
 
       <div className='fieldset w-full'>
-        <div className={twMerge('flex items-start justify-between gap-4', (editedChart.style === 'pie' || editedChart.method.type === 'custom') && 'justify-end')}>
-          {editedChart.style !== 'pie' && editedChart.method.type !== 'custom' && (
+        <div className={twMerge('flex items-start justify-between gap-4', (editedChart.style === 'pie' || editedChart.style === 'heatmap' || editedChart.method.type === 'custom') && 'justify-end')}>
+          {editedChart.style !== 'pie' && editedChart.style !== 'heatmap' && editedChart.method.type !== 'custom' && (
             <div className='flex items-center gap-2'>
               <Toggle size='xs' color='secondary' checked={editedChart.breakdown !== undefined} onChange={(e) => editChart('breakdown', e.currentTarget.checked ? null : undefined)} id='breakdown_toggle' name='breakdown_toggle' />
               <label className='label [:checked+&]:text-secondary transition-colors' htmlFor='breakdown_toggle'>
@@ -724,7 +732,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
               <span className='label-text'>Colors</span>
             </label>
 
-            {Array.from({ length: Math.max(editedChart.traceColors?.length ?? 0, DEFAULT_TRACE_COLORS.length) }, (_, i) => (
+            {editedChart.style !== 'heatmap' && Array.from({ length: Math.max(editedChart.traceColors?.length ?? 0, DEFAULT_TRACE_COLORS.length) }, (_, i) => (
               <Tooltip key={i} style={{ transitionDelay: `${i * 40}ms` }} message={`Trace ${i + 1}`} className={twMerge('transition-all block transition-discrete opacity-100 starting:opacity-0', editedChart.breakdown === undefined && editedChart.style !== 'pie' && i > 0 && 'hidden opacity-0')}>
                 <label style={{ backgroundColor: editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i] }} className='flex justify-center size-4 rounded-full cursor-pointer hover:ring focus-within:ring-2' htmlFor={`traceColors_${i}`}>
                   <input type='color' value={editedChart.traceColors?.[i] ?? DEFAULT_TRACE_COLORS[i]} onChange={(e) => { editedChart.traceColors ??= []; editedChart.traceColors[i] = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id={`traceColors_${i}`} name={`traceColors_${i}`} />
@@ -732,13 +740,21 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
               </Tooltip>
             ))}
 
-            {((editedChart.method.type === 'aggregate_avg' && editedChart.method.bars) || editedChart.method.type === 'custom') && (
+            {((editedChart.method.type === 'aggregate_avg' && editedChart.method.bars) || editedChart.method.type === 'custom') && editedChart.style !== 'pie' && editedChart.style !== 'heatmap' && (
               <Tooltip message='Bars'>
                 <label style={{ backgroundColor: editedChart.barColor ?? DEFAULT_BAR_COLOR }} className='flex justify-center size-4 rounded-sm cursor-pointer hover:ring focus-within:ring-2' htmlFor='barColor'>
                   <input type='color' value={editedChart.barColor ?? DEFAULT_BAR_COLOR} onChange={(e) => { editedChart.barColor = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id='barColor' name='barColor' />
                 </label>
               </Tooltip>
             )}
+
+            {editedChart.style === 'heatmap' && Array.from({ length: 3 }, (_, i) => (
+              <Tooltip key={i} style={{ transitionDelay: `${i * 40}ms` }} message={`${['Low', 'Mid', 'High'][i]!} Color`} className='transition-all block transition-discrete opacity-100 starting:opacity-0'>
+                <label style={{ backgroundColor: editedChart.traceColors?.[i] ?? DEFAULT_HEATMAP_COLORS[i] }} className={twMerge('flex justify-center size-4 cursor-pointer hover:ring focus-within:ring-2', ['rounded-l-full', 'rounded-full', 'rounded-r-full'][i])} htmlFor={`traceColors_${i}`}>
+                  <input type='color' value={editedChart.traceColors?.[i] ?? DEFAULT_HEATMAP_COLORS[i]} onChange={(e) => { editedChart.traceColors ??= []; editedChart.traceColors[i] = e.currentTarget.value }} className='absolute opacity-0 pointer-events-none' id={`traceColors_${i}`} name={`traceColors_${i}`} />
+                </label>
+              </Tooltip>
+            ))}
           </div>
         </div>
 
@@ -771,7 +787,7 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
               <label htmlFor='sortCol' className='label'>
                 <span className='label-text'>Order By</span>
               </label>
-              <Select disabled={!editedChart.table} value={editedChart.sortCol ?? ''} onChange={(e) => editChart('sortCol', e.currentTarget.value)} className='w-full join-item' id='sortCol' name='sortCol'>
+              <Select disabled={!editedChart.table || editedChart.style === 'heatmap'} value={editedChart.sortCol ?? ''} onChange={(e) => editChart('sortCol', e.currentTarget.value)} className='w-full join-item' id='sortCol' name='sortCol'>
                 <Select.Option value=''>No Order</Select.Option>
 
                 {editedChart.method.type.includes('aggregate')
@@ -787,8 +803,8 @@ export function ChartEditPane ({ tables, editedChart, error }: { tables: Record<
               <label htmlFor='sortDesc' className='label'>
                 <span className='label-text invisible'>Sort</span>
               </label>
-              <label htmlFor='sortDesc' className='relative checkbox size-10 join-item'>
-                <input type='checkbox' hidden className='absolute' disabled={!editedChart.table} checked={editedChart.sortDesc ?? false} onChange={(e) => editChart('sortDesc', e.currentTarget.checked || undefined)} id='sortDesc' name='sortDesc' />
+              <label htmlFor='sortDesc' className='relative checkbox size-10 join-item [:has(:disabled)]:cursor-not-allowed [:has(:disabled)]:opacity-50'>
+                <input type='checkbox' hidden className='absolute' disabled={!editedChart.table || !editedChart.sortCol || editedChart.style === 'heatmap'} checked={editedChart.sortDesc ?? false} onChange={(e) => editChart('sortDesc', e.currentTarget.checked || undefined)} id='sortDesc' name='sortDesc' />
                 <MdArrowUpward className='transition [:has(:checked)>&]:-scale-y-100 absolute inset-0 size-full p-2' />
               </label>
             </div>

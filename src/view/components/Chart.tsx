@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 import type { Chart as ChartConfig, ValueUnit } from '../../lib/config'
-import { DEFAULT_BAR_COLOR, DEFAULT_TRACE_COLORS, getWeekdayName, type Table } from '../../lib/constants'
+import { DEFAULT_BAR_COLOR, DEFAULT_HEATMAP_COLORS, DEFAULT_TRACE_COLORS, getWeekdayName, type Table } from '../../lib/constants'
 
 import { MdDragHandle } from 'react-icons/md'
 
@@ -457,7 +457,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
             }
       },
       legend: {
-        show: Boolean(chart.table),
+        show: Boolean(chart.table) && chart.style !== 'heatmap',
         type: 'scroll',
         bottom: 8,
         padding: [0, 30]
@@ -625,7 +625,10 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       }
     }
 
-    const oldLength = (chartRef.current?.getOption() as any)?.series?.length ?? 0
+    const oldOptions: any = chartRef.current?.getOption()
+    const oldGraphic = oldOptions?.graphic
+    const oldLength = oldOptions?.series?.length ?? 0
+    const oldCalendar = oldOptions?.calendar
 
     function getPieTotalString (selected?: Record<string, boolean>): string {
       selected ??= (chartRef.current?.getOption().legend as any)?.selected ?? {}
@@ -634,6 +637,11 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
       return `{label|Total ${chart.yTitle}:} {value|${formatValue(rows.reduce((a, r) => allSelected || selected?.[r.x] ? a + parseFloat(r.y) : a, 0), chart.yUnit)}}`
     }
+
+    const toReplace: string[] = []
+    if (oldLength > series.length) toReplace.push('series')
+    if (oldCalendar?.length && chart.style !== 'heatmap') toReplace.push('calendar', 'visualMap')
+    if (Boolean(oldGraphic) !== (chart.style === 'pie')) toReplace.push('graphic')
 
     chartRef.current?.setOption({
       xAxis: chart.style === 'pie'
@@ -648,11 +656,17 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
             top: 80 + (180 * i),
             cellSize: 15
           }))
-        : undefined,
+        : [],
       visualMap: chart.style === 'heatmap'
         ? {
           min: heatmapMin,
           max: heatmapMax,
+          inRange: {
+            color: Array.from({ length: 3 }, (_, i) => chart.traceColors?.[i] ?? DEFAULT_HEATMAP_COLORS[i])
+          },
+          outOfRange: {
+            color: 'gray'
+          },
           formatter: (v: string | number) => formatValue(v, chart.yUnit),
           orient: 'horizontal',
           left: 40,
@@ -674,10 +688,16 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
             fill: 'var(--color-base-content)',
             fontSize: 10
           },
-          cursor: 'default'
+          cursor: 'default',
+          enterFrom: {
+            style: { opacity: 0 }
+          },
+          enterAnimation: {
+            duration: 300
+          }
         }
         : undefined
-    }, { replaceMerge: oldLength > series.length ? 'series' : undefined })
+    }, { replaceMerge: toReplace })
 
     if (chart.style === 'pie') {
       function updatePieTotal (params: any): void {

@@ -227,7 +227,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
       <Drawer
         open={editing !== null}
         side={editedChart && (
-          <div className='w-96 h-screen overflow-auto bg-base-200 p-6 space-y-4'>
+          <div className='w-96 h-screen overflow-y-auto overflow-x-hidden bg-base-200 p-6 space-y-4'>
             <div className='flex gap-4 items-center justify-between mb-4'>
               <div className='flex items-center gap-4'>
                 <h1 className='text-2xl font-bold'>Edit Chart</h1>
