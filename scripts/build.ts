@@ -7,6 +7,9 @@ import { styleText } from 'util'
 
 import pkg from '../package.json'
 
+const GUI_SUBSYSTEM = 0x2
+const CONSOLE_SUBSYSTEM = 0x3
+
 // TODO: switch build script to use --production --keep-names when https://github.com/oven-sh/bun/issues/12304 is fixed
 
 // ========= DEFINITIONS =========
@@ -170,6 +173,26 @@ async function createIco ({
   await fs.writeFile(outFile, icoBuffer)
 }
 
+/**
+ * The Bun build `noConsole` parameter is currently broken. This function manually sets the GUI header
+ * @see https://github.com/oven-sh/bun/issues/19916#issuecomment-3299059370
+ * @param filePath The path to the executable
+ */
+async function setWindowsSubsystem (filePath: string): Promise<void> {
+  const data = await fs.readFile(filePath)
+  const buffer = Buffer.from(data)
+
+  const peOffset = buffer.readUInt32LE(0x3C)
+  const subsystemOffset = peOffset + 0x5C
+  const currentSubsystem = buffer.readUInt16LE(subsystemOffset)
+
+  if (currentSubsystem !== CONSOLE_SUBSYSTEM) throw new Error(`Unexpected subsystem value: 0x${currentSubsystem.toString(16)}`)
+
+  buffer.writeUInt16LE(GUI_SUBSYSTEM, subsystemOffset)
+
+  await fs.writeFile(filePath, buffer)
+}
+
 const iconPromise = process.platform === 'win32'
   ? createIco({
     sourceFile: ICON_PATH,
@@ -232,8 +255,8 @@ const result = await Bun.build({
   compile: {
     autoloadPackageJson: true,
     execArgv: ['--console-depth=100', '--no-orphans'],
-    outfile: 'build/spyglass',
-    windows: process.platform === 'win32' // TODO: add more info (https://bun.com/docs/bundler/executables#javascript-18)
+    outfile: path.resolve(BUILD_OUTPUT_PATH, 'spyglass'),
+    windows: process.platform === 'win32'
       ? {
         title: 'Spyglass',
         icon: path.resolve(BUILD_OUTPUT_PATH, 'icon.ico'),
@@ -264,6 +287,10 @@ if (result.metafile) {
 } else console.warn(styleText('yellow', 'No metafile was written'))
 
 console.info(styleText('green', 'Executable built'))
+
+if (process.platform === 'win32') {
+  await setWindowsSubsystem(path.resolve(BUILD_OUTPUT_PATH, 'spyglass.exe'))
+}
 
 if (process.platform === 'darwin') {
   await createMacApp({
