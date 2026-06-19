@@ -5,10 +5,9 @@ import { build } from 'vite'
 import toIco from 'to-ico'
 import { styleText } from 'util'
 
-import pkg from '../package.json'
+import { setWindowsSubsystem } from '../src/lib/shell'
 
-const GUI_SUBSYSTEM = 0x2
-const CONSOLE_SUBSYSTEM = 0x3
+import pkg from '../package.json'
 
 // TODO: switch build script to use --production --keep-names when https://github.com/oven-sh/bun/issues/12304 is fixed
 
@@ -173,26 +172,6 @@ async function createIco ({
   await fs.writeFile(outFile, icoBuffer)
 }
 
-/**
- * The Bun build `noConsole` parameter is currently broken. This function manually sets the GUI header
- * @see https://github.com/oven-sh/bun/issues/19916#issuecomment-3299059370
- * @param filePath The path to the executable
- */
-async function setWindowsSubsystem (filePath: string): Promise<void> {
-  const data = await fs.readFile(filePath)
-  const buffer = Buffer.from(data)
-
-  const peOffset = buffer.readUInt32LE(0x3C)
-  const subsystemOffset = peOffset + 0x5C
-  const currentSubsystem = buffer.readUInt16LE(subsystemOffset)
-
-  if (currentSubsystem !== CONSOLE_SUBSYSTEM) throw new Error(`Unexpected subsystem value: 0x${currentSubsystem.toString(16)}`)
-
-  buffer.writeUInt16LE(GUI_SUBSYSTEM, subsystemOffset)
-
-  await fs.writeFile(filePath, buffer)
-}
-
 const iconPromise = process.platform === 'win32'
   ? createIco({
     sourceFile: ICON_PATH,
@@ -289,7 +268,7 @@ if (result.metafile) {
 console.info(styleText('green', 'Executable built'))
 
 if (process.platform === 'win32') {
-  await setWindowsSubsystem(path.resolve(BUILD_OUTPUT_PATH, 'spyglass.exe'))
+  await setWindowsSubsystem(path.resolve(BUILD_OUTPUT_PATH, 'spyglass.exe'), 'gui')
 }
 
 if (process.platform === 'darwin') {

@@ -17,6 +17,7 @@ import { getColumnIdentifier, getColumnNonConflictName, getTableNonConflictName,
 import * as logger from './lib/logger'
 import { changecwd, manuallyResolveModule } from './lib/depcache'
 import { dateBucket } from './lib/database'
+import { getExecutablePath } from './lib/shell'
 
 import pkg from '../package.json'
 
@@ -62,6 +63,8 @@ if (process.env.NODE_ENV === 'production') {
       fs.appendFileSync(LOG_PATH, `SPYGLASS HAS CRASHED! :( (Code ${code})`)
       openSync(LOG_PATH)
     }
+
+    process.exit(code)
   }
 
   process.on('beforeExit', onExit)
@@ -179,7 +182,12 @@ const binds = {
     const version = (pkg.optionalDependencies as Record<string, string>)[driver]
     logger.info('Installing:', driver, version)
 
-    return Bun.$`BUN_BE_BUN=1 ${process.execPath} install -g ${driver}${version ? `@${version}` : ''}`
+    const execPath = await getExecutablePath()
+    return Bun.$`BUN_BE_BUN=1 ${execPath} install -g ${driver}${version ? `@${version}` : ''}`
+      .catch((err) => {
+        if (err instanceof Bun.$.ShellError && err.exitCode === 4083) return
+        throw err
+      })
       .then(async () => {
         using _ = await changecwd()
         logger.info(driver, 'installed')
@@ -514,6 +522,19 @@ function stringifyError (err: unknown): string {
 }
 
 /**
+ * Deeply unwrap causes from an error
+ * @see https://github.com/oven-sh/bun/issues/18357
+ * @param err The error to unwrap
+ * @returns   A flattened array of causes
+ */
+function unwrapCauses (err: unknown): Error[] {
+  if (!err) return []
+  if (!(err instanceof Error)) return [err as Error]
+
+  return [err, ...unwrapCauses(err.cause)]
+}
+
+/**
  * Wrap a binding callback to catch errors to log them to the console and prepare them for transport
  * @param callback The callback
  * @returns        The wrapped callback
@@ -524,7 +545,7 @@ function wrapBind<T extends (...params: any[]) => any> (callback: T): Promisify<
       return await callback(...params)
     } catch (err) {
       // TEMP: https://github.com/oven-sh/bun/issues/18357
-      if (err instanceof Error) logger.error(err, err.cause)
+      if (err instanceof Error) logger.error(...unwrapCauses(err))
       else logger.error(err)
 
       throw stringifyError(err)

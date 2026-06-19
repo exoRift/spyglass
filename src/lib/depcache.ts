@@ -3,6 +3,7 @@ import fs from 'fs/promises'
 import Module from 'module'
 
 import * as logger from './logger'
+import { getExecutablePath } from './shell'
 
 /**
  * Change the current working directory to the global module cache
@@ -10,8 +11,9 @@ import * as logger from './logger'
  */
 export async function changecwd () { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   if (process.env.NODE_ENV === 'production') {
+    const execPath = await getExecutablePath()
     const oldDir = process.cwd()
-    const globalDirPromise = Bun.$`BUN_BE_BUN=1 ${process.execPath} pm -g cache`
+    const globalDirPromise = Bun.$`BUN_BE_BUN=1 ${execPath} pm -g cache`
       .quiet()
       .then((res) => res.text())
       .catch((err) => {
@@ -61,7 +63,8 @@ const originalResolve = (Module as any)._resolveFilename.bind(Module)
  * @returns         The resolved path
  */
 async function getRealPath (specifier: string): Promise<string> {
-  return (await Bun.$`BUN_BE_BUN=1 ${process.execPath} -p "require.resolve('${specifier}')"`.quiet(true)).text().trim()
+  const execPath = await getExecutablePath()
+  return (await Bun.$`BUN_BE_BUN=1 ${execPath} -p "require.resolve('${specifier}')"`.quiet(true)).text().trim()
 }
 
 /**
@@ -93,7 +96,10 @@ export async function manuallyResolveModule (specifier: string): Promise<void> {
       require(realPath)
       return
     } catch (err) {
-      if (!(err instanceof ResolveMessage)) throw new Error('Non-ResolveMessage error thrown', { cause: err })
+      if (!(err instanceof ResolveMessage)) {
+        logger.warn('Non-ResolveMessage error thrown', err)
+        return
+      }
 
       const subspecifier = err.message.match(/Cannot find (?:package|module) '(.+?)'/)?.[1]
       if (!subspecifier) throw new Error('Unable to parse module name from error message', { cause: err })

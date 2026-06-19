@@ -119,7 +119,7 @@ function DriverModals (): React.ReactNode {
         <Modal.Actions>
           <form method='dialog' className='contents'>
             <Button>No</Button>
-            <Button color='success' onClick={() => window.installDriver(window._missingDriver!).catch(() => null).then((res) => setInstallationState([window._missingDriver!, res]))}>Install</Button>
+            <Button color='success' onClick={() => window.installDriver(window._missingDriver!).catch((err) => err).then((res) => setInstallationState([window._missingDriver!, res]))}>Install</Button>
           </form>
         </Modal.Actions>
       </DriverDialog>
