@@ -474,11 +474,10 @@ const binds = {
       })
   },
   promptFile (title: string, accept?: string[] | null) {
-    console.debug(accept)
     return openFile({
       title,
       startPath: process.cwd(),
-      filterPatterns: accept
+      filterPatterns: accept ?? undefined
     })
       .then((files) => files[0] ?? null)
       .catch((err) => {

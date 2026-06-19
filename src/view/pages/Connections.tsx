@@ -494,10 +494,10 @@ export default function Connections ({ navigate, editing }: { navigate: typeof r
 
         <div className='flex items-center gap-4'>
           <a title='Repository' href={pkg.homepage} target='_blank' rel='noreferrer' className='group' onClick={(e) => { e.preventDefault(); void window.openLink(e.currentTarget.href) }}>
-            <img src='https://github.com/favicon.ico' alt='GitHub' className='transition duration-500 ease-[cubic-bezier(1,1.85,0.34,-0.32)] size-6 dark:invert group-hover:scale-125' />
+            <img src='https://github.com/favicon.ico' alt='GitHub' className='transition duration-300 ease-[cubic-bezier(1,1.85,0.34,-0.32)] size-6 dark:invert group-hover:scale-125' />
           </a>
 
-          <Settings config={config} />
+          <Settings />
         </div>
       </header>
 

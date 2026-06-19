@@ -1,5 +1,10 @@
-import { Button, Modal, Select } from 'react-daisyui'
+import { useState } from 'react'
+import { useObject } from 'react-exo-hooks'
+
 import type { Config } from '../../lib/config'
+
+import { Button, Modal, Select } from 'react-daisyui'
+
 import { MdSettings } from 'react-icons/md'
 
 const media = window.matchMedia('(prefers-color-scheme: dark)')
@@ -29,20 +34,21 @@ export function setTheme (theme: Config['theme'], fromListener?: boolean): void 
 }
 
 /**
- * Configure Spyglass settings
- * @param props
- * @param props.config The Spyglass config
+ * A button & modal to configure Spyglass settings
  */
-export function Settings ({ config }: { config: Config }): React.ReactNode {
-  const { Dialog, handleShow } = Modal.useDialog()
+export function Settings (): React.ReactNode {
+  const [config] = useObject(window._config)
+
+  // Have to use a state here instead of Dialog hook due to rerender from configs
+  const [open, setOpen] = useState(false)
 
   return (
     <>
-      <button onClick={handleShow} className='group cursor-pointer' title='Settings'>
+      <button onClick={() => setOpen(true)} className='group cursor-pointer' title='Settings'>
         <MdSettings className='transition duration-1000 text-3xl group-hover:rotate-360 ease-out' />
       </button>
 
-      <Dialog className='flex flex-col max-w-none w-[80vw] h-[80vh] z-50'>
+      <Modal.Legacy open={open} className='flex flex-col max-w-none w-[80vw] h-[80vh] z-50'>
         <Modal.Header>Settings</Modal.Header>
 
         <Modal.Body className='grow'>
@@ -59,11 +65,9 @@ export function Settings ({ config }: { config: Config }): React.ReactNode {
         </Modal.Body>
 
         <Modal.Actions>
-          <form method='dialog' className='contents'>
-            <Button key='actions'>Close</Button>
-          </form>
+          <Button onClick={() => setOpen(false)}>Close</Button>
         </Modal.Actions>
-      </Dialog>
+      </Modal.Legacy>
     </>
   )
 }
