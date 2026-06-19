@@ -10,7 +10,6 @@ import vm from 'vm'
 import os from 'os'
 import { spawnSync } from 'child_process'
 import fs from 'fs'
-import { openFile } from 'popups-file-dialog'
 
 import { type Chart, type Connection, Config } from './lib/config'
 import { getColumnIdentifier, getColumnNonConflictName, getTableNonConflictName, type Table } from './lib/constants'
@@ -18,6 +17,7 @@ import * as logger from './lib/logger'
 import { changecwd, manuallyResolveModule } from './lib/depcache'
 import { dateBucket } from './lib/database'
 import { getExecutablePath } from './lib/shell'
+import { openFile } from './lib/files'
 
 import pkg from '../package.json'
 
@@ -487,7 +487,6 @@ const binds = {
       startPath: process.cwd(),
       filterPatterns: accept ?? undefined
     })
-      .then((files) => files[0] ?? null)
       .catch((err) => {
         if (err instanceof Error && err.message === 'no file selected') return null
 

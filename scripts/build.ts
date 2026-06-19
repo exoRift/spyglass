@@ -1,5 +1,4 @@
 import fs from 'fs/promises'
-import { execSync } from 'child_process'
 import path from 'path'
 import { build } from 'vite'
 import toIco from 'to-ico'
@@ -38,14 +37,6 @@ async function getResizedIcons (sourceFile: string, sizes: number[]): Promise<Bu
   }
 
   return buffers
-}
-
-/**
- * Execute a command
- * @param cmd The command to execute
- */
-function exec (cmd: string): void {
-  execSync(cmd, { stdio: 'inherit' })
 }
 
 /**
@@ -141,15 +132,15 @@ async function createMacApp ({
   }
 
   const icnsOut = path.resolve(resourcesPath, `${appName}.icns`)
-  exec(`iconutil -c icns "${iconsetPath}" -o "${icnsOut}"`)
+  await Bun.$`iconutil -c icns "${iconsetPath}" -o "${icnsOut}"`
 
   await fs.rm(iconsetPath, { recursive: true })
   console.info(styleText('blue', 'Mac iconset created'))
 
-  if (signIdentity) exec(`codesign --deep --force --options runtime --sign "${signIdentity}" "${appPath}"`)
-  else exec(`codesign --deep --force --sign - "${appPath}"`)
+  if (signIdentity) await Bun.$`codesign --deep --force --options runtime --sign "${signIdentity}" "${appPath}"`
+  else await Bun.$`codesign --deep --force --sign - "${appPath}"`
 
-  exec(`codesign --verify --deep --strict --verbose=2 "${appPath}"`)
+  await Bun.$`codesign --verify --deep --strict --verbose=2 "${appPath}"`
 }
 
 /**
