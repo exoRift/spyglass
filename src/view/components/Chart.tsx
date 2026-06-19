@@ -167,10 +167,17 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     if (waitingForResize.current) return
     waitingForResize.current = true
 
-    requestAnimationFrame(() => {
-      if (!chartRef.current?.isDisposed()) chartRef.current?.resize()
+    const _resize = (): void => {
+      if (!chartRef.current?.isDisposed()) {
+        if (isAnimating.current) return void requestAnimationFrame(_resize)
+
+        chartRef.current?.resize()
+      }
+
       waitingForResize.current = false
-    })
+    }
+
+    _resize()
   }, [])
 
   useEffect(() => {
@@ -589,16 +596,16 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       }
     }
   }, [
+    canQuery,
+    rows,
     chart.yTitle,
     chart.style,
     chart.method,
-    rows,
     chart.traceColors,
     chart.barColor,
     chart.breakdown,
     chart.cumulative,
-    chart.yUnit,
-    canQuery
+    chart.yUnit
   ])
 
   return (

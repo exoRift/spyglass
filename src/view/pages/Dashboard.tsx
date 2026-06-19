@@ -217,7 +217,7 @@ export default function Dashboard ({ navigate, connIndex }: { navigate: typeof r
         </div>
       </header>
 
-      <div id='dash-scroller' className={twMerge('transition duration-700 h-0 grow overflow-auto dark:[&_.resizable-handle]:invert! [&_.dashup-widget]:bg-base-200 **:data-last-edited:z-20! [&_.dashup-widget_.wrapper]:overflow-visible! [&_.dashup-widget]:overflow-visible! [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&:not(:has(.dragging))_.dashup-widget:hover]:z-30! opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
+      <div id='dash-scroller' className={twMerge('transition duration-700 h-0 grow overflow-auto scrollbar-gutter-stable! dark:[&_.resizable-handle]:invert! [&_.dashup-widget]:bg-base-200 **:data-last-edited:z-20! [&_.dashup-widget_.wrapper]:overflow-visible! [&_.dashup-widget]:overflow-visible! [&_.dashup-widget]:animate-[fade-in_0.5s_ease-out_forwards_normal] [&:not(:has(.dragging))_.dashup-widget:hover]:z-30! opacity-0', connected && 'opacity-100')} onDoubleClick={createWidget}>
         <div className={twMerge('transition [&>.dashup]:empty:before:content-["Double_click_to_add_a_chart"] [&>.dashup]:before:text-base-content/30 [&>.dashup]:before:text-3xl [&>.dashup]:empty:flex [&>.dashup]:empty:justify-center [&>.dashup]:empty:items-center [&>.dashup]:empty:h-full! [&:has(.dashup:empty)]:h-full', editing !== null && '-translate-x-48')}>
           <Dash widgets={charts} packing columns={100} rowHeight={1} placeholderClassName='transition-none!' onChange={updateWidgets} />
           <div className={twMerge('transition fixed min-h-screen inset-0 bg-black opacity-0 z-10 pointer-events-none', editing !== null && 'opacity-30')} />
