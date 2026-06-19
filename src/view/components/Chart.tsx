@@ -390,6 +390,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
     chartRef.current?.setOption({
       animation: true,
       title: {
+        show: Boolean(chart.table),
         text: chart.title || undefined,
         subtext: chart.subtitle || undefined,
         left: 'center'
@@ -420,7 +421,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
           }
       },
       legend: {
-        show: true,
+        show: Boolean(chart.table),
         type: 'scroll',
         bottom: 8,
         padding: [0, 30]
@@ -430,7 +431,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       xAxis: {
         type: figuredType,
-        show: chart.style !== 'pie',
+        show: Boolean(chart.table) && chart.style !== 'pie',
         name: !canQuery || !chart.table || chart.style === 'pie' ? undefined : chart.xTitle,
         nameLocation: 'center',
         nameGap: 30,
@@ -445,7 +446,7 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
       },
       yAxis: {
         type: 'value',
-        show: chart.style !== 'pie',
+        show: Boolean(chart.table) && chart.style !== 'pie',
         name: !canQuery || !chart.table ? undefined : chart.yTitle,
         nameLocation: 'center',
         nameTextStyle: {
@@ -610,13 +611,13 @@ export function Chart ({ chart, tables, canQuery, className, onContextMenu, onEr
 
   return (
     <>
-      <div className='transition-opacity absolute inset-x-0 flex justify-center bg-base-200 handle cursor-grab opacity-0 z-10 [.dashup-widget:hover_&]:opacity-100 [.dashup-widget[data-editing]_&]:hidden' onMouseDown={() => document.addEventListener('mousemove', onMouseMove, { passive: true })}>
+      <div className='transition-opacity absolute inset-x-0 flex justify-center bg-base-200 handle cursor-grab opacity-0 z-10 [.dashup-widget:hover_&]:opacity-100 [.dashup-widget[data-editing]_&]:hidden rounded-t-[5px]' onMouseDown={() => document.addEventListener('mousemove', onMouseMove, { passive: true })}>
         <MdDragHandle />
       </div>
 
       <div
         ref={chartContainerRef}
-        className={twMerge('flex bg-base-300 w-full h-full min-w-1 min-h-1 select-none rounded-[5px] *:rounded-[5px]', className)}
+        className={twMerge('flex w-full h-full min-w-1 min-h-1 select-none rounded-[5px] *:rounded-[5px]', className)}
         onContextMenu={onContextMenu}
         onDoubleClick={(e) => e.stopPropagation()}
       />

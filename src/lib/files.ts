@@ -208,10 +208,6 @@ async function openFileWindows (
   return splitNonEmpty(await new Response(proc.stdout).text())
 }
 
-// ---------------------------------------------------------------------------
-// Linux — zenity (GNOME/most distros), falling back to kdialog (KDE)
-// ---------------------------------------------------------------------------
-
 /**
  * Construct filter arguments for Zenity
  * @param filterPatterns The filter patterns
