@@ -18,6 +18,7 @@ import { changecwd, manuallyResolveModule } from './lib/depcache'
 import { dateBucket } from './lib/database'
 import { getExecutablePath } from './lib/shell'
 import { openFile } from './lib/files'
+import { constructReportLink, stringifyError } from './lib/errors'
 
 import pkg from '../package.json'
 
@@ -67,6 +68,12 @@ if (process.env.NODE_ENV === 'production') {
     process.exit(code)
   }
 
+  process.on('uncaughtException', (err) => {
+    void sink.write(`Report Uncaught Exception: ${constructReportLink('RUNTIME EXCEPTION', err)}`)
+  })
+  process.on('unhandledRejection', (err) => {
+    void sink.write(`Report Unhandled Rejection: ${constructReportLink('RUNTIME REJECTION', err)}`)
+  })
   process.on('beforeExit', onExit)
   process.on('exit', onExit)
 }
@@ -504,21 +511,6 @@ export type Binds = typeof binds
 export type Promisify<T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>
 export type PromisifiedBinds = {
   [K in keyof Binds]: Promisify<Binds[K]>
-}
-
-/**
- * Stringify an error for transport to the webview (can't serialize Error instances)
- * @param err The error
- * @returns   The string representation
- */
-function stringifyError (err: unknown): string {
-  if (err instanceof Error) {
-    if (err.cause) return `${err.message} (${stringifyError(err.cause)})`
-    else return err.message
-    // @ts-expect-error
-  } else if (typeof err === 'object' && 'message' in err) return err.message
-  else if (!err) return String(err)
-  else return err.toString() // eslint-disable-line @typescript-eslint/no-base-to-string
 }
 
 /**

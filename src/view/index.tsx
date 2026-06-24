@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client'
 
 import Connections from './pages/Connections'
 import Dashboard from './pages/Dashboard'
+import ErrorView from './pages/ErrorView'
 
 import { Sidecar } from './components/Sidecar'
 import { setTheme } from './components/Settings'
@@ -37,3 +38,13 @@ export function renderRoute<R extends keyof typeof VIEWS> (route: R, props: Omit
 
 renderRoute('Connections', {})
 sidecarRoot.render(<Sidecar />)
+
+/**
+ * Handle unrecoverable runtime errors
+ * @param e The error event
+ */
+function handleError (e: ErrorEvent): void {
+  mainRoot.render(<ErrorView error={e.error} />)
+}
+
+window.addEventListener('error', handleError)

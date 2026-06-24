@@ -20,7 +20,7 @@ function ConfigLoadFailureGuard (): React.ReactNode {
         <br />
         <p>You can close the application to prevent data loss or continue anyway</p>
 
-        <code className='block bg-base-300 w-full text-xs mt-2 p-2'>
+        <code className='error'>
           {window._invalidConfigSchemaError}
         </code>
       </Modal.Body>
@@ -63,7 +63,7 @@ function ConfigSaveFailureGuard (): React.ReactNode {
       <Modal.Body>
         <p>Your config wasn't saved properly.</p>
 
-        <code className='block bg-base-300 w-full text-xs mt-2 p-2'>
+        <code className='error'>
           {error}
         </code>
 

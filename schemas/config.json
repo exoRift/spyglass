@@ -220,6 +220,7 @@
                 "style": {
                   "enum": [
                     "bar",
+                    "heatmap",
                     "line",
                     "pie"
                   ]

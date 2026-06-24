@@ -88,6 +88,10 @@ body {
   .btn.btn-outline:not(.btn-primary,.btn-secondary,.btn-accent,.btn-ghost,.btn-success,.btn-failure,.btn-warning,.btn-info):hover {
     @apply bg-neutral text-neutral-content;
   }
+
+  .error {
+    @apply block bg-base-300 w-full text-xs mt-2 p-2 font-mono;
+  }
 }
 
 @theme {
