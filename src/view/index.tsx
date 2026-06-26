@@ -5,7 +5,7 @@ import Dashboard from './pages/Dashboard'
 import ErrorView from './pages/ErrorView'
 
 import { Sidecar } from './components/Sidecar'
-import { setTheme } from './components/Settings'
+import { setTheme } from '../lib/theme'
 
 import './styles/index.css'
 
