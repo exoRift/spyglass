@@ -37,7 +37,8 @@ export async function getExecutablePath (): Promise<string> {
   if (process.platform === 'win32') {
     if (CLONE_PATH) return CLONE_PATH
     else {
-      const clonePath = path.resolve(os.tmpdir(), 'spyglass-console.exe')
+      const clonePath = path.resolve(os.tmpdir(), 'spyglass', 'spyglass-console.exe')
+      await fs.mkdir(path.resolve(os.tmpdir(), 'spyglass'))
       await fs.copyFile(process.execPath, clonePath)
       await setWindowsSubsystem(clonePath, 'console')
       CLONE_PATH = clonePath

@@ -125,7 +125,8 @@ on error
 end try
 `
 
-  const scriptPath = path.resolve(os.tmpdir(), 'dialog.applescript')
+  const scriptPath = path.resolve(os.tmpdir(), 'spyglass', 'dialog.applescript')
+  await fs.mkdir(path.resolve(os.tmpdir(), 'spyglass'))
   await fs.writeFile(scriptPath, script, 'utf8')
   const proc = Bun.spawn({ cmd: ['osascript', scriptPath], windowsHide: true })
   await proc.exited
@@ -182,7 +183,8 @@ async function openFileWindows (
   filterPatternsDescription: string,
   allowMultipleSelects: boolean
 ): Promise<string[]> {
-  const scriptPath = path.resolve(os.tmpdir(), 'dialog.ps1')
+  const scriptPath = path.resolve(os.tmpdir(), 'spyglass', 'dialog.ps1')
+  await fs.mkdir(path.resolve(os.tmpdir(), 'spyglass'))
   await fs.writeFile(scriptPath, POWERSHELL_SCRIPT, 'utf8')
   const proc = Bun.spawn({
     cmd: [

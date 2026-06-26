@@ -38,7 +38,8 @@ if (process.env.NODE_ENV === 'production') {
   }
 
   const encoder = new TextEncoder()
-  const LOG_PATH = path.resolve(os.tmpdir(), `spyglass-${new Date().toISOString().replaceAll(':', '-')}.log`)
+  const LOG_PATH = path.resolve(os.tmpdir(), 'spyglass', `spyglass-${new Date().toISOString().replaceAll(':', '-')}.log`)
+  fs.mkdirSync(path.resolve(os.tmpdir(), 'spyglass'))
   const file = Bun.file(LOG_PATH)
   const sink = file.writer()
 
