@@ -5,6 +5,8 @@ import path from 'path'
 const GUI_SUBSYSTEM = 0x2
 const CONSOLE_SUBSYSTEM = 0x3
 
+export const TEMP_PATH = path.resolve(os.tmpdir(), 'spyglass')
+
 /**
  * The Bun build `noConsole` parameter is currently broken. This function manually sets the GUI header
  * @see https://github.com/oven-sh/bun/issues/19916#issuecomment-3299059370
@@ -37,8 +39,7 @@ export async function getExecutablePath (): Promise<string> {
   if (process.platform === 'win32') {
     if (CLONE_PATH) return CLONE_PATH
     else {
-      const clonePath = path.resolve(os.tmpdir(), 'spyglass', 'spyglass-console.exe')
-      await fs.mkdir(path.resolve(os.tmpdir(), 'spyglass'))
+      const clonePath = path.resolve(TEMP_PATH, 'spyglass-console.exe')
       await fs.copyFile(process.execPath, clonePath)
       await setWindowsSubsystem(clonePath, 'console')
       CLONE_PATH = clonePath

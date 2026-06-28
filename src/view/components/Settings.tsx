@@ -4,6 +4,7 @@ import { useObject } from 'react-exo-hooks'
 import { setTheme } from '../../lib/theme'
 
 import { Button, Modal, Select } from 'react-daisyui'
+import { HoldButton } from './HoldButton'
 
 import pkg from '../../../package.json'
 import { MdSettings, MdUpdate } from 'react-icons/md'
@@ -100,21 +101,37 @@ export function Settings (): React.ReactNode {
       <Modal.Legacy open={open} className='flex flex-col max-w-none w-[80vw] h-[80vh] z-50'>
         <Modal.Header>Settings</Modal.Header>
 
-        <Modal.Body className='grow flex'>
-          <div className='flex flex-col w-1/2'>
+        <Modal.Body className='grow flex max-sm:flex-col gap-2'>
+          <div className='flex flex-col sm:w-1/2'>
             <div className='fieldset'>
               <label className='label' htmlFor='theme'>
                 <span className='label-text'>Theme</span>
               </label>
-              <Select id='theme' name='theme' defaultValue={config.theme} onChange={(e) => { config.theme = e.currentTarget.value as typeof config.theme; setTheme(config.theme); void window.saveConfig(config) }}>
+              <Select className='max-sm:w-auto' id='theme' name='theme' defaultValue={config.theme} onChange={(e) => { config.theme = e.currentTarget.value as typeof config.theme; setTheme(config.theme); void window.saveConfig(config) }}>
                 <Select.Option value='system'>System</Select.Option>
                 <Select.Option value='light'>Light</Select.Option>
                 <Select.Option value='dark'>Dark</Select.Option>
               </Select>
             </div>
+
+            <div className='mt-auto flex flex-col gap-2 sm:w-fit'>
+              <div className='flex gap-2 *:grow'>
+                <Button onClick={() => void window.openLink(window._configLocation)}>Open Config File</Button>
+                <div data-tip='Delete temp files, config file, and (if Bun is not already installed) database drivers' className='tooltip'>
+                  <HoldButton className='w-full' time={1000} fill='var(--color-error)' pressedFill='var(--color-success)' onHold={() => window.deleteData()}>
+                    <span className='absolute invisible in-data-pressed:visible'>Deleted</span>
+                    <span className='visible in-data-pressed:invisible'>Delete Data</span>
+                  </HoldButton>
+                </div>
+              </div>
+
+              <div className='flex *:grow'>
+                <Button onClick={() => void window.openLogFolder()}>Open Log Folder</Button>
+              </div>
+            </div>
           </div>
 
-          <div className='flex flex-col w-1/2 justify-end items-end'>
+          <div className='flex flex-col sm:w-1/2 justify-end items-end max-sm:mt-auto'>
             <div className='fieldset'>
               <span className='text-end'>{`Spyglass Version: ${pkg.version}`}</span>
               <UpdateButton />

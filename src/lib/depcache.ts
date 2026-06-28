@@ -6,31 +6,42 @@ import * as logger from './logger'
 import { getExecutablePath } from './shell'
 
 /**
+ * Get the global module directory
+ * @returns The directory
+ */
+export async function getGlobalDr (): Promise<string> {
+  const execPath = await getExecutablePath()
+
+  const globalDirPromise = Bun.$`BUN_BE_BUN=1 ${execPath} pm -g cache`
+    .quiet()
+    .then((res) => res.text())
+    .catch((err) => {
+      if (err instanceof Bun.$.ShellError) {
+        const givenPath = err.stderr.toString().match(/"([^"]+?)"/)?.[1]
+
+        if (!givenPath) throw new Error('Could not extrapolate would-be global module store from error', { cause: err })
+
+        logger.info('Bun not detected. Creating global module store at:', givenPath)
+
+        return fs.mkdir(givenPath, { recursive: true })
+          .then(() => Bun.file(path.resolve(givenPath, 'package.json')).write('{}'))
+          .then(() => givenPath)
+      } else throw err
+    })
+
+  const globalDir = path.resolve(await globalDirPromise, '../global')
+
+  return globalDir
+}
+
+/**
  * Change the current working directory to the global module cache
  * @returns An object with a dispose symbol attached to return back to the original working directory on scope exit
  */
 export async function changecwd () { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   if (process.env.NODE_ENV === 'production') {
-    const execPath = await getExecutablePath()
     const oldDir = process.cwd()
-    const globalDirPromise = Bun.$`BUN_BE_BUN=1 ${execPath} pm -g cache`
-      .quiet()
-      .then((res) => res.text())
-      .catch((err) => {
-        if (err instanceof Bun.$.ShellError) {
-          const givenPath = err.stderr.toString().match(/"([^"]+?)"/)?.[1]
-
-          if (!givenPath) throw new Error('Could not extrapolate would-be global module store from error', { cause: err })
-
-          logger.info('Bun not detected. Creating global module store at:', givenPath)
-
-          return fs.mkdir(givenPath, { recursive: true })
-            .then(() => Bun.file(path.resolve(givenPath, 'package.json')).write('{}'))
-            .then(() => givenPath)
-        } else throw err
-      })
-
-    const globalDir = path.resolve(await globalDirPromise, '../global')
+    const globalDir = await getGlobalDr()
     process.chdir(globalDir)
     logger.info('Changing CWD to:', globalDir)
 

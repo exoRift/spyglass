@@ -17,6 +17,8 @@ export default function ErrorView ({ error }: { error: any }): React.ReactNode {
       <h1 className='text-3xl font-bold'>Spyglass has entered an unrecoverable state</h1>
       <code className='error max-w-2/3 text-start'>{error.toString()}</code>
       <a className='link' href={url} target='_blank' rel='noreferrer' onClick={(e) => { e.preventDefault(); void window.openLink(e.currentTarget.href) }}>Report Issue</a>
+
+      {import.meta.env.DEV && <button onClick={() => window.location.reload()}>Reload</button>}
     </div>
   )
 }

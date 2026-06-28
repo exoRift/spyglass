@@ -9,14 +9,15 @@ import open from 'open'
 import vm from 'vm'
 import os from 'os'
 import { spawnSync } from 'child_process'
-import fs from 'fs'
+import fsSync from 'fs'
+import fs from 'fs/promises'
 
 import { type Chart, type Connection, Config } from './lib/config'
 import { getColumnIdentifier, getColumnNonConflictName, getTableNonConflictName, type Table } from './lib/constants'
 import * as logger from './lib/logger'
-import { changecwd, manuallyResolveModule } from './lib/depcache'
+import { changecwd, getGlobalDr, manuallyResolveModule } from './lib/depcache'
 import { dateBucket } from './lib/database'
-import { getExecutablePath } from './lib/shell'
+import { TEMP_PATH as LOG_FOLDER, TEMP_PATH, getExecutablePath } from './lib/shell'
 import { openFile } from './lib/files'
 import { constructReportLink, stringifyError } from './lib/errors'
 
@@ -24,6 +25,7 @@ import pkg from '../package.json'
 
 logger.info('Starting Spyglass...')
 
+fsSync.mkdirSync(LOG_FOLDER, { recursive: true })
 if (process.env.NODE_ENV === 'production') {
   /**
    * Synchronous bare-bones version of `open` because you can't schedule async tasks on `exit` event
@@ -38,8 +40,7 @@ if (process.env.NODE_ENV === 'production') {
   }
 
   const encoder = new TextEncoder()
-  const LOG_PATH = path.resolve(os.tmpdir(), 'spyglass', `spyglass-${new Date().toISOString().replaceAll(':', '-')}.log`)
-  fs.mkdirSync(path.resolve(os.tmpdir(), 'spyglass'))
+  const LOG_PATH = path.resolve(LOG_FOLDER, `spyglass-${new Date().toISOString().replaceAll(':', '-')}.log`)
   const file = Bun.file(LOG_PATH)
   const sink = file.writer()
 
@@ -62,7 +63,7 @@ if (process.env.NODE_ENV === 'production') {
    */
   function onExit (code: number): void {
     if (code) {
-      fs.appendFileSync(LOG_PATH, `SPYGLASS HAS CRASHED! :( (Code ${code})`)
+      fsSync.appendFileSync(LOG_PATH, `SPYGLASS HAS CRASHED! :( (Code ${code})`)
       openSync(LOG_PATH)
     }
 
@@ -209,6 +210,31 @@ const binds = {
   },
   async openLink (url: string) {
     return await open(url)
+      .then(() => true)
+  },
+  async openLogFolder () {
+    return await open(LOG_FOLDER)
+      .then(() => true)
+  },
+  async deleteData () {
+    console.info('Deleting data...')
+
+    const promises = [
+      fs.rm(TEMP_PATH, { recursive: true }).then(() => console.info('Deleted temp folder', TEMP_PATH)),
+      fs.rm(CONFIG_LOCATION).then(() => console.info('Deleted config', CONFIG_LOCATION)),
+      Bun.$`which bun`.quiet().then(async (res) => {
+        if (res.exitCode) {
+          const dir = path.resolve(await getGlobalDr(), '../..')
+          const name = path.basename(dir)
+          if (name === '.bun') {
+            await fs.rm(dir, { recursive: true })
+            console.info('Deleted global install', dir)
+          } else console.warn('When deleting data, couldn\'t delete global install')
+        } else console.info('Skipping deleting global install; Bun is installed')
+      })
+    ]
+
+    return await Promise.all(promises)
       .then(() => true)
   },
   getConfig (): Config {
@@ -562,19 +588,35 @@ const originalWarn = console.warn
 const originalDebug = console.debug
 console.info = (...args) => {
   originalInfo(...args)
-  void logInfo(...args).catch(() => logWarn('Failed to log to INFO', args))
+  try {
+    void logInfo(...args).catch(() => logWarn('Failed to log to INFO', args))
+  catch {
+    logWarn('Failed to log to INFO', args)
+  }
 }
 console.error = (...args) => {
   originalError(...args)
-  void logError(...args).catch(() => logWarn('Failed to log to ERROR', args))
+  try {
+    void logError(...args).catch(() => logWarn('Failed to log to ERROR', args))
+  } catch {
+    logWarn('Failed to log to ERROR', args)
+  }
 }
 console.warn = (...args) => {
   originalWarn(...args)
-  void logWarn(...args).catch(() => originalWarn('Failed to log to WARN', args))
+  try {
+    void logWarn(...args).catch(() => originalWarn('Failed to log to WARN', args))
+  } catch {
+    originalWarn('Failed to log to WARN', args)
+  }
 }
 console.debug = (...args) => {
   originalDebug(...args)
-  void logDebug(...args).catch(() => logWarn('Failed to log to DEBUG', args))
+  try {
+    void logDebug(...args).catch(() => logWarn('Failed to log to DEBUG', args))
+  } catch {
+    logWarn('Failed to log to DEBUG', args)
+  }
 }
 window.addEventListener('error', (e) => { void logError('Webview Runtime Error:', e.message) }, { passive: true })
 `)
