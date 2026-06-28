@@ -50,7 +50,7 @@ jobs:
             cp ./build/spyglass.exe ./release/${{ matrix.artifact }}.exe
 
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            cp ./build/spyglass.dmg ./release/${{ matrix.artifact }}
+            cp ./build/spyglass.dmg ./release/${{ matrix.artifact }}.dmg
 
           else
             cp ./build/spyglass ./release/${{ matrix.artifact }}
