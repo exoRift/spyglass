@@ -50,9 +50,7 @@ jobs:
             cp ./build/spyglass.exe ./release/${{ matrix.artifact }}.exe
 
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            ditto -c -k --sequesterRsrc --keepParent \
-              ./build/spyglass.app \
-              ./release/${{ matrix.artifact }}.zip
+            cp ./build/spyglass.dmg ./release/${{ matrix.artifact }}
 
           else
             cp ./build/spyglass ./release/${{ matrix.artifact }}

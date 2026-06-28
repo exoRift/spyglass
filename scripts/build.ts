@@ -277,6 +277,14 @@ if (process.platform === 'darwin') {
     })
 
   console.info(styleText('blue', 'Mac .app bundle built'))
+
+  await Bun.$`create-dmg --overwrite --no-version-in-filename --no-code-sign build/Spyglass.app build/`
+    .catch((err) => {
+      console.error(styleText('red', 'Failed to create Mac .dmg volume'), err)
+      process.exit(1)
+    })
+
+  console.info(styleText('blue', 'Mac .dmg volume created'))
 }
 
 await fs.rm(path.resolve(import.meta.dirname, '../src/view/dist'), { recursive: true })
